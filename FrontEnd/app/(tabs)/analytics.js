@@ -1,79 +1,150 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '../../src/theme/theme';
-import useSensorData from '../../src/hooks/useSensorData';
-import ChartWidget from '../../src/components/ChartWidget';
-import { SENSOR_CONFIG, SENSOR_KEYS } from '../../src/utils/constants';
-import { formatTime, formatDate } from '../../src/utils/helpers';
+import React, { useMemo, useState } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+} from 'react-native';
 
-const TABS = ['24h', '7d'];
+import ChartWidget from '../../src/components/ChartWidget';
+import useSensorData from '../../src/hooks/useSensorData';
+
+import {
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+} from '../../src/theme/theme';
+
+import {
+  SENSOR_KEYS,
+  SENSOR_CONFIG,
+} from '../../src/utils/constants';
+
+const TABS = [
+  { key: '24h', label: 'Last 24 Hours' },
+  { key: '7d', label: 'Last 7 Days' },
+];
 
 export default function AnalyticsScreen() {
   const { history, weekly } = useSensorData();
-  const [timeRange, setTimeRange] = useState('24h');
 
-  // Select dataset based on time range
-  const dataset = timeRange === '24h' ? history : weekly;
-  
-  // Format labels (show 6 labels max)
-  const formatLabel = (timestamp, i, total) => {
-    if (total <= 6 || i % Math.floor(total / 6) === 0) {
-      return timeRange === '24h' ? formatTime(timestamp) : formatDate(timestamp);
+  const [selectedTab, setSelectedTab] = useState('24h');
+
+  const dataset = useMemo(() => {
+    if (selectedTab === '24h') return history;
+    return weekly;
+  }, [selectedTab, history, weekly]);
+
+  const createChartData = (sensorKey) => {
+    if (!dataset || dataset.length === 0) {
+      return {
+        values: [],
+        labels: [],
+      };
     }
-    return '';
-  };
 
-  const getChartData = (sensorKey) => {
-    if (!dataset || dataset.length === 0) return { data: [], labels: [] };
-    
-    // Use last 24 points for better rendering
-    const points = dataset.slice(-24);
+    const records =
+      selectedTab === '24h'
+        ? dataset.slice(-20)
+        : dataset;
+
     return {
-      data: points.map(r => r[sensorKey]),
-      labels: points.map((r, i) => formatLabel(r.timestamp, i, points.length)),
+      values: records
+        .map((item) => Number(item?.[sensorKey]))
+        .filter((v) => !isNaN(v)),
+
+      labels: records.map((item, index) => {
+        if (selectedTab === '24h') {
+          return index % 4 === 0
+            ? item.time || ''
+            : '';
+        }
+
+        return index % 2 === 0
+          ? item.date || ''
+          : '';
+      }),
     };
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.header}>
-        <Text style={styles.title}>📊 Analytics</Text>
-        <Text style={styles.subtitle}>Historical farm performance</Text>
+        <Text style={styles.title}>
+          📊 Analytics
+        </Text>
+
+        <Text style={styles.subtitle}>
+          Historical sensor trends
+        </Text>
       </View>
 
-      <View style={styles.tabsContainer}>
+      <View style={styles.tabContainer}>
         {TABS.map((tab) => (
           <Pressable
-            key={tab}
-            style={[styles.tab, timeRange === tab && styles.tabActive]}
-            onPress={() => setTimeRange(tab)}
+            key={tab.key}
+            style={[
+              styles.tab,
+              selectedTab === tab.key &&
+                styles.activeTab,
+            ]}
+            onPress={() =>
+              setSelectedTab(tab.key)
+            }
           >
-            <Text style={[styles.tabText, timeRange === tab && styles.tabTextActive]}>
-              {tab === '24h' ? 'Last 24 Hours' : 'Last 7 Days'}
+            <Text
+              style={[
+                styles.tabText,
+                selectedTab === tab.key &&
+                  styles.activeTabText,
+              ]}
+            >
+              {tab.label}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      {SENSOR_KEYS.map((key) => {
-        const config = SENSOR_CONFIG[key];
-        const { data, labels } = getChartData(key);
-        
-        return (
-          <View key={key} style={styles.chartWrapper}>
-            <ChartWidget
-              title={`${config.label} History`}
-              data={data}
-              labels={labels}
-              color={config.color}
-              yAxisSuffix={config.unit ? ` ${config.unit}` : ''}
-              height={200}
-              showDots={false}
-            />
-          </View>
-        );
-      })}
-      
+      {dataset.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>
+            No Sensor History
+          </Text>
+
+          <Text style={styles.emptySubtitle}>
+            Waiting for sensor readings...
+          </Text>
+        </View>
+      ) : (
+        SENSOR_KEYS.map((sensor) => {
+          const config = SENSOR_CONFIG[sensor];
+
+          const chart =
+            createChartData(sensor);
+
+          return (
+            <View
+              key={sensor}
+              style={styles.chartCard}
+            >
+              <ChartWidget
+                title={config.label}
+                data={chart.values}
+                labels={chart.labels}
+                color={config.color}
+                unit={config.unit}
+              />
+            </View>
+          );
+        })
+      )}
+
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -127,5 +198,16 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     marginBottom: spacing.md,
+  },
+  emptyContainer: {
+    backgroundColor: colors.surface,
+    padding: 30,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
 });

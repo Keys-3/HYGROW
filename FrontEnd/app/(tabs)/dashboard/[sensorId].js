@@ -1,110 +1,81 @@
-/**
- * Farm Help — Sensor Detail Screen
- *
- * Shows detailed chart and statistics for a single sensor.
- * Dynamic route: /dashboard/[sensorId]
- */
+import React, { useMemo } from 'react';
+import {
+  ScrollView,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
 
+import ChartWidget from '../../../src/components/ChartWidget';
 import useSensorData from '../../../src/hooks/useSensorData';
-import { borderRadius, colors, shadows, spacing, typography } from '../../../src/theme/theme';
-import { SENSOR_CONFIG, SENSOR_THRESHOLDS } from '../../../src/utils/constants';
+
 import {
-  calcStats,
-  formatSensorValue,
-  formatTime,
-  getSensorStatus,
-  getStatusColor,
-  getStatusLabel,
-} from '../../../src/utils/helpers';
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+  boxShadow,
+} from '../../../src/theme/theme';
+
+import {
+  SENSOR_CONFIG,
+  SENSOR_THRESHOLDS,
+} from '../../../src/utils/constants';
 
 export default function SensorDetailScreen() {
-  const { sensorId } = useLocalSearchParams();
   const router = useRouter();
+  const { sensorId } = useLocalSearchParams();
+
   const { current, history } = useSensorData();
-  const { width } = useWindowDimensions();
 
-  const chartWidth = width - spacing.lg * 2;
+  const config = SENSOR_CONFIG[sensorId];
 
-  // Guard for array params from expo-router
-  const resolvedSensorId = Array.isArray(sensorId) ? sensorId[0] : sensorId;
-
-  const config = resolvedSensorId ? SENSOR_CONFIG[resolvedSensorId] : null;
-  const threshold = resolvedSensorId ? SENSOR_THRESHOLDS[resolvedSensorId] : null;
-  const currentValue = resolvedSensorId ? current?.[resolvedSensorId] : undefined;
-  const status = resolvedSensorId ? getSensorStatus(resolvedSensorId, currentValue) : 'unknown';
-  const statusColor = getStatusColor(status);
-
-  // Prepare chart data
-  const chartData = useMemo(() => {
-    if (!resolvedSensorId || !config || !history || history.length === 0) return null;
-
-    const values = history.map((r) => r?.[resolvedSensorId] ?? 0);
-
-    // Support both history.time and history.timestamp
-    const labels = history.map((r, i) => {
-      if (i % 6 !== 0) return '';
-      if (r?.timestamp) return formatTime(r.timestamp);
-      if (r?.time) return r.time;
-      return '';
-    });
-
-    return {
-      labels,
-      datasets: [
-        {
-          data: values,
-          color: () => config.color || colors.primary,
-          strokeWidth: 2,
-        },
-      ],
-    };
-  }, [history, resolvedSensorId, config]);
-
-  // Calculate statistics
-  const stats = useMemo(() => {
-    if (!resolvedSensorId || !history || history.length === 0) {
-      return { min: 0, max: 0, avg: 0 };
-    }
-
-    const values = history
-      .map((r) => r?.[resolvedSensorId])
-      .filter((v) => v != null && !Number.isNaN(v));
-
-    return calcStats(values);
-  }, [history, resolvedSensorId]);
-
-  if (!resolvedSensorId || !config || !threshold) {
+  if (!config) {
     return (
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
-          </Pressable>
-          <Text style={styles.errorText}>Sensor not found</Text>
-        </View>
+      <View style={styles.center}>
+        <Text>Sensor not found.</Text>
       </View>
     );
   }
 
-  const emoji =
-    resolvedSensorId === 'temperature' ? '🌡️' :
-    resolvedSensorId === 'humidity' ? '💧' :
-    resolvedSensorId === 'ph' ? '🧪' :
-    resolvedSensorId === 'ec' ? '⚡' :
-    resolvedSensorId === 'lightIntensity' ? '☀️' :
-    '🪣';
+  const threshold = SENSOR_THRESHOLDS?.[sensorId];
+
+  const values = history
+    .map((item) => Number(item?.[sensorId]))
+    .filter((v) => !isNaN(v));
+
+  const labels = history.map((item, index) =>
+    index % 4 === 0 ? item.time : ''
+  );
+
+  const currentValue =
+    current?.[sensorId] ?? 0;
+
+  const stats = useMemo(() => {
+    if (!values.length) {
+      return {
+        min: 0,
+        max: 0,
+        avg: 0,
+      };
+    }
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    const avg =
+      values.reduce((a, b) => a + b, 0) /
+      values.length;
+
+    return {
+      min,
+      max,
+      avg,
+    };
+  }, [history]);
 
   return (
     <ScrollView
@@ -112,137 +83,123 @@ export default function SensorDetailScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
+      <Pressable
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Text style={styles.backText}>
+          ← Back
+        </Text>
+      </Pressable>
+
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>
-          {emoji} {config.label}
+        <Text style={styles.title}>
+          {config.label}
         </Text>
-        {!!config.description && (
-          <Text style={styles.headerDesc}>{config.description}</Text>
-        )}
+
+        <Text style={styles.subtitle}>
+          Live Sensor Analysis
+        </Text>
       </View>
 
-      {/* Current Value Card */}
-      <View style={[styles.valueCard, { borderColor: `${config.color}40` }]}>
-        <View style={[styles.valueAccent, { backgroundColor: config.color }]} />
-        <Text style={styles.valueLabel}>Current Reading</Text>
-        <Text style={[styles.currentValue, { color: config.color }]}>
-          {formatSensorValue(resolvedSensorId, currentValue)}
-          <Text style={styles.currentUnit}> {config.unit}</Text>
+      <View style={styles.currentCard}>
+        <Text style={styles.currentLabel}>
+          Current Reading
         </Text>
 
-        <View style={styles.statusRow}>
-          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={[styles.statusText, { color: statusColor }]}>
-            {getStatusLabel(status)}
+        <Text
+          style={[
+            styles.currentValue,
+            {
+              color: config.color,
+            },
+          ]}
+        >
+          {currentValue.toFixed(1)}
+        </Text>
+
+        <Text style={styles.unit}>
+          {config.unit}
+        </Text>
+      </View>
+
+      <ChartWidget
+        title={`${config.label} Trend`}
+        data={values}
+        labels={labels}
+        color={config.color}
+        unit={config.unit}
+        height={240}
+      />
+
+      <Text style={styles.sectionTitle}>
+        Statistics
+      </Text>
+
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <Text style={styles.statTitle}>
+            Minimum
+          </Text>
+
+          <Text style={styles.statValue}>
+            {stats.min.toFixed(1)}
+            {config.unit}
           </Text>
         </View>
 
-        <Text style={styles.rangeText}>
-          Optimal: {threshold.min}
-          {config.unit ? ` ${config.unit}` : ''} – {threshold.max}
-          {config.unit ? ` ${config.unit}` : ''}
-        </Text>
+        <View style={styles.statCard}>
+          <Text style={styles.statTitle}>
+            Average
+          </Text>
+
+          <Text style={styles.statValue}>
+            {stats.avg.toFixed(1)}
+            {config.unit}
+          </Text>
+        </View>
+
+        <View style={styles.statCard}>
+          <Text style={styles.statTitle}>
+            Maximum
+          </Text>
+
+          <Text style={styles.statValue}>
+            {stats.max.toFixed(1)}
+            {config.unit}
+          </Text>
+        </View>
       </View>
 
-      {/* Chart */}
-      <Text style={styles.sectionTitle}>📈 24-Hour History</Text>
-      {chartData ? (
-        <View style={styles.chartContainer}>
-          <LineChart
-            data={chartData}
-            width={chartWidth}
-            height={220}
-            chartConfig={{
-              backgroundColor: colors.surface,
-              backgroundGradientFrom: colors.surface,
-              backgroundGradientTo: colors.background,
-              decimalCount: 1,
-              color: () => config.color,
-              labelColor: () => colors.textMuted,
-              propsForDots: {
-                r: '3',
-                strokeWidth: '1',
-                stroke: config.color,
-              },
-              propsForBackgroundLines: {
-                stroke: colors.border,
-                strokeDasharray: '5,5',
-              },
-              style: {
-                borderRadius: borderRadius.lg,
-              },
-            }}
-            bezier
-            style={styles.chart}
-            withInnerLines
-            withOuterLines={false}
-            withVerticalLines={false}
-            yAxisSuffix={config.unit ? ` ${config.unit}` : ''}
-            fromZero={false}
-          />
-        </View>
-      ) : (
-        <View style={styles.emptyChartCard}>
-          <Text style={styles.emptyChartText}>No history available yet</Text>
-        </View>
+      {threshold && (
+        <>
+          <Text style={styles.sectionTitle}>
+            Recommended Range
+          </Text>
+
+          <View style={styles.rangeCard}>
+            <View style={styles.rangeRow}>
+              <Text style={styles.rangeLabel}>
+                Minimum
+              </Text>
+
+              <Text style={styles.rangeValue}>
+                {threshold.min} {config.unit}
+              </Text>
+            </View>
+
+            <View style={styles.rangeRow}>
+              <Text style={styles.rangeLabel}>
+                Maximum
+              </Text>
+
+              <Text style={styles.rangeValue}>
+                {threshold.max} {config.unit}
+              </Text>
+            </View>
+          </View>
+        </>
       )}
-
-      {/* Statistics */}
-      <Text style={styles.sectionTitle}>📋 Statistics</Text>
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Minimum</Text>
-          <Text style={[styles.statValue, { color: colors.info }]}>
-            {formatSensorValue(resolvedSensorId, stats.min)}
-            <Text style={styles.statUnit}> {config.unit}</Text>
-          </Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Maximum</Text>
-          <Text style={[styles.statValue, { color: colors.danger }]}>
-            {formatSensorValue(resolvedSensorId, stats.max)}
-            <Text style={styles.statUnit}> {config.unit}</Text>
-          </Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Average</Text>
-          <Text style={[styles.statValue, { color: colors.primary }]}>
-            {formatSensorValue(resolvedSensorId, stats.avg)}
-            <Text style={styles.statUnit}> {config.unit}</Text>
-          </Text>
-        </View>
-      </View>
-
-      {/* Threshold Info */}
-      <Text style={styles.sectionTitle}>🎯 Thresholds</Text>
-      <View style={styles.thresholdCard}>
-        <View style={styles.thresholdRow}>
-          <Text style={styles.thresholdLabel}>Optimal Range</Text>
-          <Text style={[styles.thresholdValue, { color: colors.success }]}>
-            {threshold.min} – {threshold.max} {config.unit}
-          </Text>
-        </View>
-
-        <View style={styles.thresholdRow}>
-          <Text style={styles.thresholdLabel}>Warning Range</Text>
-          <Text style={[styles.thresholdValue, { color: colors.warning }]}>
-            {'<'}{threshold.min} or {'>'}{threshold.max} {config.unit}
-          </Text>
-        </View>
-
-        <View style={styles.thresholdRow}>
-          <Text style={styles.thresholdLabel}>Critical Range</Text>
-          <Text style={[styles.thresholdValue, { color: colors.danger }]}>
-            {'<'}{threshold.criticalMin} or {'>'}{threshold.criticalMax} {config.unit}
-          </Text>
-        </View>
-      </View>
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -254,142 +211,145 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+
   content: {
     padding: spacing.lg,
     paddingTop: 60,
   },
-  errorText: {
-    ...typography.body,
-    textAlign: 'center',
-    marginTop: 100,
-  },
 
-  // Header
   header: {
     marginBottom: spacing.lg,
   },
+
   backButton: {
     marginBottom: spacing.md,
+    alignSelf: 'flex-start',
   },
+
   backText: {
     ...typography.body,
     color: colors.primary,
     fontWeight: '600',
   },
+
   headerTitle: {
     ...typography.h1,
-  },
-  headerDesc: {
-    ...typography.bodySmall,
-    marginTop: 4,
+    marginBottom: 6,
   },
 
-  // Value Card
+  headerDesc: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+
   valueCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.xl,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
     borderWidth: 1,
     overflow: 'hidden',
     alignItems: 'center',
     ...shadows.card,
   },
+
   valueAccent: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
-    height: 4,
+    top: 0,
+    height: 5,
   },
+
   valueLabel: {
     ...typography.label,
     marginBottom: spacing.sm,
   },
+
   currentValue: {
-    fontSize: 52,
+    fontSize: 48,
     fontWeight: '700',
   },
+
   currentUnit: {
-    fontSize: 20,
-    fontWeight: '400',
+    fontSize: 18,
+    fontWeight: '500',
   },
+
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
+
   statusDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
+    marginRight: 8,
   },
+
   statusText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 15,
   },
+
   rangeText: {
     ...typography.caption,
     marginTop: spacing.sm,
+    color: colors.textSecondary,
   },
 
-  // Chart
   sectionTitle: {
     ...typography.h3,
     marginBottom: spacing.md,
   },
+
   chartContainer: {
-    marginBottom: spacing.lg,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-  },
-  chart: {
-    borderRadius: borderRadius.lg,
-  },
-  emptyChartCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-    ...shadows.small,
-  },
-  emptyChartText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
+    ...shadows.card,
   },
 
-  // Stats
+  emptyChartCard: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+
+  emptyChartText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+
   statsGrid: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    justifyContent: 'space-between',
+    marginBottom: spacing.xl,
   },
+
   statCard: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     alignItems: 'center',
+    marginHorizontal: 4,
     ...shadows.small,
   },
+
   statLabel: {
     ...typography.caption,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    marginBottom: 6,
+    color: colors.textSecondary,
   },
+
   statValue: {
     fontSize: 18,
     fontWeight: '700',
   },
-  statUnit: {
-    fontSize: 11,
-    fontWeight: '400',
-  },
 
-  // Thresholds
   thresholdCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
@@ -397,18 +357,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+
   thresholdRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: spacing.sm,
   },
+
   thresholdLabel: {
     ...typography.body,
-    fontSize: 14,
   },
+
   thresholdValue: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

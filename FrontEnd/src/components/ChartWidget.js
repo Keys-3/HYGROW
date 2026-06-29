@@ -1,91 +1,240 @@
-import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, useWindowDimensions } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
-import { colors, spacing, borderRadius, typography } from '../theme/theme';
+import React, { useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
 
-export default function ChartWidget({ data, labels, title, color = colors.primary, height = 220, showDots = true, yAxisSuffix = '' }) {
+import Svg, {
+  Path,
+  Circle,
+  Line,
+  Text as SvgText,
+} from 'react-native-svg';
+
+import {
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+} from '../theme/theme';
+
+export default function ChartWidget({
+  title,
+  data = [],
+  labels = [],
+  color = colors.primary,
+  unit = '',
+  height = 220,
+}) {
   const { width } = useWindowDimensions();
 
-  // Calculate actual chart width accounting for all padding:
-  // Parent ScrollView has padding.lg (24px each side)
-  // Container has padding.md (16px each side)
-  const chartWidth = width - spacing.lg * 2 - spacing.md * 2;
+  const chartWidth = width - 70;
+  const chartHeight = height - 40;
 
-  if (!data || data.length === 0) {
+  const values = useMemo(
+    () =>
+      data
+        .map(Number)
+        .filter((v) => !isNaN(v)),
+    [data]
+  );
+
+  if (values.length < 2) {
     return (
-      <View style={[styles.container, { height, justifyContent: 'center', alignItems: 'center' }]}>
-         <ActivityIndicator color={color} />
-         <Text style={styles.loadingText}>Loading chart data...</Text>
+      <View style={styles.card}>
+        {title && (
+          <Text style={styles.title}>
+            {title}
+          </Text>
+        )}
+
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>
+            Waiting for sensor readings...
+          </Text>
+        </View>
       </View>
     );
   }
 
-  const chartData = {
-    labels: labels || data.map(() => ''),
-    datasets: [
-      {
-        data: data,
-        color: () => color,
-        strokeWidth: 2,
-      },
-    ],
-  };
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+
+  const padding = 24;
+
+  const points = values.map((value, index) => {
+    const x =
+      padding +
+      (index * (chartWidth - padding * 2)) /
+        (values.length - 1);
+
+    const y =
+      chartHeight -
+      padding -
+      ((value - min) / range) *
+        (chartHeight - padding * 2);
+
+    return { x, y };
+  });
+
+  const path = points
+    .map((p, i) =>
+      `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
+    )
+    .join(' ');
 
   return (
-    <View style={styles.container}>
-      {title && <Text style={styles.title}>{title}</Text>}
-      <LineChart
-        data={chartData}
+    <View style={styles.card}>
+      {title && (
+        <Text style={styles.title}>
+          {title}
+        </Text>
+      )}
+
+      <Svg
         width={chartWidth}
-        height={height}
-        chartConfig={{
-          backgroundColor: colors.surface,
-          backgroundGradientFrom: colors.surface,
-          backgroundGradientTo: colors.surface,
-          decimalCount: 1,
-          color: () => color,
-          labelColor: () => colors.textSecondary,
-          propsForDots: showDots ? {
-            r: '3',
-            strokeWidth: '1',
-            stroke: color,
-          } : { r: '0' },
-          propsForBackgroundLines: {
-            stroke: colors.border,
-            strokeDasharray: '4,4',
-          },
-        }}
-        bezier
-        style={styles.chart}
-        withInnerLines={true}
-        withOuterLines={false}
-        withVerticalLines={false}
-        yAxisSuffix={yAxisSuffix}
-        fromZero={false}
-      />
+        height={chartHeight}
+      >
+        {[0, 1, 2, 3, 4].map((i) => {
+          const y =
+            padding +
+            ((chartHeight - padding * 2) / 4) * i;
+
+          return (
+            <Line
+              key={i}
+              x1={padding}
+              x2={chartWidth - padding}
+              y1={y}
+              y2={y}
+              stroke="#ECECEC"
+              strokeWidth={1}
+            />
+          );
+        })}
+
+        <Path
+          d={path}
+          fill="none"
+          stroke={color}
+          strokeWidth={3}
+        />
+
+        {points.map((p, i) => (
+          <Circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={3}
+            fill={color}
+          />
+        ))}
+
+        <SvgText
+          x={2}
+          y={20}
+          fill="#888"
+          fontSize="11"
+        >
+          {max.toFixed(1)}
+        </SvgText>
+
+        <SvgText
+          x={2}
+          y={chartHeight - 10}
+          fill="#888"
+          fontSize="11"
+        >
+          {min.toFixed(1)}
+        </SvgText>
+
+        {labels.map((label, i) => {
+          if (!label) return null;
+
+          const x =
+            padding +
+            (i *
+              (chartWidth - padding * 2)) /
+              (labels.length - 1);
+
+          return (
+            <SvgText
+              key={i}
+              x={x}
+              y={chartHeight}
+              fontSize="9"
+              fill="#777"
+              textAnchor="middle"
+            >
+              {label}
+            </SvgText>
+          );
+        })}
+      </Svg>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Min: {min.toFixed(1)}
+          {unit}
+        </Text>
+
+        <Text style={styles.footerText}>
+          Max: {max.toFixed(1)}
+          {unit}
+        </Text>
+
+        <Text style={styles.footerText}>
+          Avg:{' '}
+          {(
+            values.reduce(
+              (a, b) => a + b,
+              0
+            ) / values.length
+          ).toFixed(1)}
+          {unit}
+        </Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.md,
   },
+
   title: {
     ...typography.h3,
     marginBottom: spacing.md,
   },
-  chart: {
-    borderRadius: borderRadius.md,
-    marginVertical: 8,
+
+  empty: {
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  loadingText: {
+
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+
+  footer: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+
+  footerText: {
     ...typography.bodySmall,
-    marginTop: spacing.sm,
-  }
+    color: colors.textSecondary,
+  },
 });

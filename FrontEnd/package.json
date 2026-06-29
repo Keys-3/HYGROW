@@ -12,6 +12,7 @@
     "expo-file-system": "~56.0.8",
     "expo-font": "~56.0.5",
     "expo-image-picker": "~56.0.18",
+    "expo-linear-gradient": "~56.0.4",
     "expo-linking": "~56.0.14",
     "expo-notifications": "^56.0.18",
     "expo-router": "~56.2.11",
@@ -24,13 +25,15 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
-    "react-native-chart-kit": "^6.12.3",
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
     "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
     "react-native-worklets": "0.8.3",
+    "recharts": "^3.9.0",
+    "victory": "^37.3.6",
+    "victory-native": "^41.26.0",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -43,7 +46,6 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:web": "expo export --platform web"
-
   },
   "private": true
 }
