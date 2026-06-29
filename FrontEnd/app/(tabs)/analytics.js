@@ -85,14 +85,14 @@ export default function AnalyticsScreen() {
         </Text>
       </View>
 
-      <View style={styles.tabContainer}>
+      <View style={styles.tabsContainer}>
         {TABS.map((tab) => (
           <Pressable
             key={tab.key}
             style={[
               styles.tab,
               selectedTab === tab.key &&
-                styles.activeTab,
+                styles.tabActive,
             ]}
             onPress={() =>
               setSelectedTab(tab.key)
@@ -102,7 +102,7 @@ export default function AnalyticsScreen() {
               style={[
                 styles.tabText,
                 selectedTab === tab.key &&
-                  styles.activeTabText,
+                  styles.tabTextActive,
               ]}
             >
               {tab.label}
@@ -111,13 +111,13 @@ export default function AnalyticsScreen() {
         ))}
       </View>
 
-      {dataset.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>
+      {!dataset || dataset.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>
             No Sensor History
           </Text>
 
-          <Text style={styles.emptySubtitle}>
+          <Text style={[styles.emptyText, { marginTop: 4, fontSize: 14 }]}>
             Waiting for sensor readings...
           </Text>
         </View>
@@ -131,7 +131,7 @@ export default function AnalyticsScreen() {
           return (
             <View
               key={sensor}
-              style={styles.chartCard}
+              style={styles.chartWrapper}
             >
               <ChartWidget
                 title={config.label}

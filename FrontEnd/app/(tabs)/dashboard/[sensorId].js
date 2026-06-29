@@ -17,7 +17,7 @@ import {
   spacing,
   borderRadius,
   typography,
-  boxShadow,
+  shadows,
 } from '../../../src/theme/theme';
 
 import {
@@ -102,8 +102,8 @@ export default function SensorDetailScreen() {
         </Text>
       </View>
 
-      <View style={styles.currentCard}>
-        <Text style={styles.currentLabel}>
+      <View style={styles.valueCard}>
+        <Text style={styles.valueLabel}>
           Current Reading
         </Text>
 
@@ -118,7 +118,7 @@ export default function SensorDetailScreen() {
           {currentValue.toFixed(1)}
         </Text>
 
-        <Text style={styles.unit}>
+        <Text style={styles.currentUnit}>
           {config.unit}
         </Text>
       </View>
@@ -136,9 +136,9 @@ export default function SensorDetailScreen() {
         Statistics
       </Text>
 
-      <View style={styles.statsRow}>
+      <View style={styles.statsGrid}>
         <View style={styles.statCard}>
-          <Text style={styles.statTitle}>
+          <Text style={styles.statLabel}>
             Minimum
           </Text>
 
@@ -149,7 +149,7 @@ export default function SensorDetailScreen() {
         </View>
 
         <View style={styles.statCard}>
-          <Text style={styles.statTitle}>
+          <Text style={styles.statLabel}>
             Average
           </Text>
 
@@ -160,7 +160,7 @@ export default function SensorDetailScreen() {
         </View>
 
         <View style={styles.statCard}>
-          <Text style={styles.statTitle}>
+          <Text style={styles.statLabel}>
             Maximum
           </Text>
 
@@ -177,23 +177,23 @@ export default function SensorDetailScreen() {
             Recommended Range
           </Text>
 
-          <View style={styles.rangeCard}>
-            <View style={styles.rangeRow}>
-              <Text style={styles.rangeLabel}>
+          <View style={styles.thresholdCard}>
+            <View style={styles.thresholdRow}>
+              <Text style={styles.thresholdLabel}>
                 Minimum
               </Text>
 
-              <Text style={styles.rangeValue}>
+              <Text style={styles.thresholdValue}>
                 {threshold.min} {config.unit}
               </Text>
             </View>
 
-            <View style={styles.rangeRow}>
-              <Text style={styles.rangeLabel}>
+            <View style={styles.thresholdRow}>
+              <Text style={styles.thresholdLabel}>
                 Maximum
               </Text>
 
-              <Text style={styles.rangeValue}>
+              <Text style={styles.thresholdValue}>
                 {threshold.max} {config.unit}
               </Text>
             </View>
@@ -210,6 +210,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   content: {
