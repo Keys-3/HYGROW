@@ -1,0 +1,386 @@
+/**
+ * Farm Help — Tab Layout
+ *
+ * Role-based bottom tab navigator:
+ * - Customer: Market, Orders, Settings (3 tabs)
+ * - Farmer: Dashboard, AI Tools, Market, Analytics, Settings (5 tabs)
+ * - Admin: All tabs visible (5 tabs)
+ *
+ * Uses safe area insets for proper handling of:
+ * - iPhone notch / Dynamic Island
+ * - Android gesture navigation
+ * - Various screen sizes
+ */
+import { Tabs, usePathname, useRouter } from 'expo-router';
+import { ChartBar as BarChart3, Bot, Hop as Home, Package, Settings, ShoppingCart, Warehouse } from 'lucide-react-native';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Sidebar } from '../../src/components/Sidebar';
+import useAuth from '../../src/hooks/useAuth';
+import { colors } from '../../src/theme/theme';
+import useAppStore from '../../src/store/useAppStore';
+import { currentTelemetry } from '../../src/data/dummyData';
+import { SENSOR_KEYS, SENSOR_THRESHOLDS, SENSOR_CONFIG } from '../../src/utils/constants';
+import { getSensorStatus, formatSensorValue } from '../../src/utils/helpers';
+
+// Tab bar icon component using Lucide icons
+function TabIcon({ Icon, label, focused }) {
+  const iconColor = focused ? colors.primary : colors.textMuted;
+  const iconSize = focused ? 26 : 24;
+
+  return (
+    <View style={styles.tabIconContainer}>
+      <Icon
+        color={iconColor}
+        size={iconSize}
+        strokeWidth={focused ? 2.5 : 2}
+      />
+      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+// Route guard component - redirects users to appropriate screens
+function RoleGuard({ children, userRole, targetRole }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (userRole === 'customer' && targetRole !== 'customer') {
+      router.replace('/(tabs)/market');
+    }
+  }, [userRole, targetRole, pathname, router]);
+
+  if (userRole === 'customer' && targetRole !== 'customer') {
+    return (
+      <View style={styles.guardContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  return children;
+}
+
+export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const router = useRouter();
+  const { user, isAuthenticated, authInitialized, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    // Wait for auth to initialize before redirecting
+    if (!authInitialized) return;
+
+    if (!isAuthenticated) {
+      router.replace('/(auth)/login');
+    }
+  }, [authInitialized, isAuthenticated, router]);
+
+  const userRole = user?.role || 'farmer';
+
+  const updateSensorData = useAppStore((s) => s.updateSensorData);
+  const addAlert = useAppStore((s) => s.addAlert);
+
+  // Global sensor data simulator & alert monitoring loop
+  useEffect(() => {
+    if (!isAuthenticated || userRole !== 'farmer') return;
+
+    const runSimulation = () => {
+      try {
+        const baseTelemetry = useAppStore.getState().sensorData || currentTelemetry;
+        const liveData = {
+          ...baseTelemetry,
+          temperature: Number((baseTelemetry.temperature + (Math.random() - 0.5) * 0.6).toFixed(1)),
+          humidity: Number(Math.max(0, Math.min(100, baseTelemetry.humidity + (Math.random() - 0.5) * 2.5)).toFixed(0)),
+          ph: Number((baseTelemetry.ph + (Math.random() - 0.5) * 0.15).toFixed(2)),
+          ec: Number((baseTelemetry.ec + (Math.random() - 0.5) * 0.08).toFixed(2)),
+          waterLevel: Number(Math.max(0, Math.min(100, baseTelemetry.waterLevel + (Math.random() - 0.5) * 1.5)).toFixed(0)),
+          timestamp: new Date().toISOString(),
+        };
+
+        updateSensorData(liveData);
+
+        // Check alerts
+        SENSOR_KEYS.forEach((key) => {
+          const value = liveData[key];
+          if (value === undefined || value === null) return;
+
+          const status = getSensorStatus(key, value);
+          const threshold = SENSOR_THRESHOLDS[key];
+
+          if (status !== 'normal') {
+            const isHigh = value > threshold.max;
+            const config = SENSOR_CONFIG[key];
+            const label = config?.label || key;
+            const formattedVal = `${formatSensorValue(key, value)}${threshold.unit}`;
+            const limitVal = `${formatSensorValue(key, isHigh ? threshold.max : threshold.min)}${threshold.unit}`;
+
+            addAlert({
+              id: `alert-${key}-${status}`,
+              sensorKey: key,
+              sensorLabel: label,
+              type: status,
+              value: value,
+              threshold: isHigh ? threshold.max : threshold.min,
+              unit: threshold.unit,
+              message: `${label} is ${isHigh ? 'above' : 'below'} threshold: ${formattedVal} (Limit: ${limitVal})`,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        });
+      } catch (err) {
+        console.error('Error in global sensor simulation loop:', err);
+      }
+    };
+
+    runSimulation();
+    const interval = setInterval(runSimulation, 25000); // Check every 25 seconds
+    return () => clearInterval(interval);
+  }, [isAuthenticated, userRole, updateSensorData, addAlert]);
+
+  const isLargeScreen = width >= 1024;
+  const isTablet = width >= 768 && width < 1024;
+
+  const baseHeight = isTablet ? 80 : 64;
+  const tabBarHeight = baseHeight + insets.bottom;
+
+  // Show loading while auth state is being determined
+  if (!authInitialized || authLoading || !isAuthenticated) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Restoring session...</Text>
+      </View>
+    );
+  }
+
+  const getTabsForRole = () => {
+    if (userRole === 'customer') {
+      return [
+        { name: 'market', title: 'Market', Icon: ShoppingCart, label: 'Market', role: 'customer' },
+        { name: 'orders', title: 'Orders', Icon: Package, label: 'Orders', role: 'customer' },
+        { name: 'settings', title: 'Setting', Icon: Settings, label: 'Setting', role: 'customer' },
+      ];
+    }
+
+    return [
+      { name: 'dashboard', title: 'Dashboard', Icon: Home, label: 'Home', role: 'farmer' },
+      { name: 'ai', title: 'AI Tools', Icon: Bot, label: 'AI', role: 'farmer' },
+      { name: 'inventory', title: 'Inventory', Icon: Warehouse, label: 'Stock', role: 'farmer' },
+      { name: 'analytics', title: 'Analytics', Icon: BarChart3, label: 'Stats', role: 'farmer' },
+      { name: 'settings', title: 'Setting', Icon: Settings, label: 'Setting', role: 'farmer' },
+    ];
+  };
+
+  const tabs = getTabsForRole();
+
+  if (isLargeScreen) {
+    return (
+      <View style={styles.desktopContainer}>
+        <Sidebar />
+        <View style={styles.content}>
+          <Tabs
+            screenOptions={{
+              headerShown: false,
+              tabBarStyle: { display: 'none' },
+            }}
+          >
+            <Tabs.Screen name="dashboard" options={{ title: 'Dashboard' }} />
+            <Tabs.Screen name="ai" options={{ title: 'AI Tools' }} />
+            <Tabs.Screen name="market" options={{ title: 'Market' }} />
+            <Tabs.Screen name="inventory" options={{ title: 'Inventory' }} />
+            <Tabs.Screen name="orders" options={{ title: 'Orders' }} />
+            <Tabs.Screen name="analytics" options={{ title: 'Analytics' }} />
+            <Tabs.Screen name="settings" options={{ title: 'Setting' }} />
+          </Tabs>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          ...styles.tabBar,
+          height: tabBarHeight,
+          paddingBottom: Math.max(insets.bottom, 8),
+          paddingTop: 8,
+        },
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+      }}
+    >
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={Home} label="Home" focused={focused} />,
+          tabBarItemStyle: userRole === 'customer' ? { display: 'none' } : undefined,
+          tabBarStyle: userRole === 'customer' ? { display: 'none' } : undefined,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (userRole === 'customer') {
+              e.preventDefault();
+              router.replace('/(tabs)/market');
+            }
+          },
+        }}
+      />
+
+      <Tabs.Screen
+        name="ai"
+        options={{
+          title: 'AI Tools',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={Bot} label="AI" focused={focused} />,
+          tabBarItemStyle: userRole === 'customer' ? { display: 'none' } : undefined,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (userRole === 'customer') {
+              e.preventDefault();
+              router.replace('/(tabs)/market');
+            }
+          },
+        }}
+      />
+
+      <Tabs.Screen
+        name="market"
+        options={{
+          title: 'Market',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={ShoppingCart} label="Market" focused={focused} />,
+          tabBarItemStyle: userRole !== 'customer' ? { display: 'none' } : undefined,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (userRole !== 'customer') {
+              e.preventDefault();
+              router.replace('/(tabs)/inventory');
+            }
+          },
+        }}
+      />
+
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          title: 'Inventory',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={Warehouse} label="Stock" focused={focused} />,
+          tabBarItemStyle: userRole === 'customer' ? { display: 'none' } : undefined,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (userRole === 'customer') {
+              e.preventDefault();
+              router.replace('/(tabs)/market');
+            }
+          },
+        }}
+      />
+
+      <Tabs.Screen
+        name="orders"
+        options={{
+          title: 'Orders',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={Package} label="Orders" focused={focused} />,
+          tabBarItemStyle: userRole === 'farmer' || userRole === 'admin' ? { display: 'none' } : undefined,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (userRole === 'farmer' || userRole === 'admin') {
+              e.preventDefault();
+              router.replace('/(tabs)/dashboard');
+            }
+          },
+        }}
+      />
+
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          title: 'Analytics',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={BarChart3} label="Stats" focused={focused} />,
+          tabBarItemStyle: userRole === 'customer' ? { display: 'none' } : undefined,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (userRole === 'customer') {
+              e.preventDefault();
+              router.replace('/(tabs)/market');
+            }
+          },
+        }}
+      />
+
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Setting',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={Settings} label="Setting" focused={focused} />,
+        }}
+      />
+    </Tabs>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  guardContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  desktopContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#0F172A',
+  },
+  content: {
+    flex: 1,
+  },
+  tabBar: {
+    backgroundColor: colors.background,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    elevation: 0,
+    ...Platform.select({
+      web: { boxShadow: 'none' },
+      default: { shadowOpacity: 0 },
+    }),
+  },
+  tabIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Platform.OS === 'ios' ? 4 : 2,
+    minHeight: 44,
+  },
+  tabLabel: {
+    fontSize: 8,
+    color: colors.textMuted,
+    fontWeight: '500',
+    lineHeight: 8,
+  },
+  tabLabelActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+});

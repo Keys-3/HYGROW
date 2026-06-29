@@ -1,0 +1,27 @@
+FROM node:20
+
+WORKDIR /app
+
+# Install system dependencies for React Native DevTools
+RUN apt-get update && apt-get install -y \
+    libnspr4 \
+    libnss3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Expo CLI
+RUN npm install -g expo-cli
+
+# Copy package files first
+COPY package*.json ./
+
+RUN npm install
+
+# Copy source code
+COPY . .
+
+EXPOSE 8081
+EXPOSE 19000
+EXPOSE 19001
+EXPOSE 19002
+
+CMD ["npx", "expo", "start", "--tunnel"]

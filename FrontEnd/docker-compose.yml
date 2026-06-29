@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  expo:
+    build: .
+
+    ports:
+      - "8081:8081"
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.expo
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      - EXPO_NO_TELEMETRY=1
+      - WATCHMAN_DISABLE=1
+
+    command: bash -c "npm install && npx expo start --tunnel"
