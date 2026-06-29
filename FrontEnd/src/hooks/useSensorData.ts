@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { db } from '../../firebase'; // adjust path if needed
 import { SensorData } from '../store/slices/sensorSlice';
 import useAppStore from '../store/useAppStore';
+import { historicalData, weeklyData as dummyWeeklyData } from '../data/dummyData';
 
 const SENSOR_COLLECTION = 'sensor_readings';
 
@@ -26,14 +27,28 @@ type HistoryPoint = {
   lightIntensity: number;
 };
 
+// Map dummy data to the correct format expected by analytics.js
+const mappedHistoricalData = historicalData.map((d: any) => ({
+  ...d,
+  time: new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  lightIntensity: d.lightIntensity || 0,
+}));
+
+const mappedWeeklyData = dummyWeeklyData.map((d: any) => ({
+  ...d,
+  date: new Date(d.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+  time: new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  lightIntensity: d.lightIntensity || 0,
+}));
+
 export default function useSensorData() {
   const storeSensorData = useAppStore((state) => state.sensorData);
   const updateSensorData = useAppStore((state) => state.updateSensorData);
   const setDeviceOnline = useAppStore((state) => state.setDeviceOnline);
 
-  const [history, setHistory] = useState<HistoryPoint[]>([]);
-  const [weekly, setWeekly] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<HistoryPoint[]>(mappedHistoricalData);
+  const [weekly, setWeekly] = useState<any[]>(mappedWeeklyData);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {

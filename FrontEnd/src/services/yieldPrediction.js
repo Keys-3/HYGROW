@@ -1,17 +1,10 @@
-const BACKEND_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL;
-export async function predictGrowth(data) {
+import { yieldPrediction as dummyYieldData } from '../data/dummyData';
 
-    const response = await fetch(
-        `${BACKEND_URL}/growth`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-        }
-    );
-
-    return response.json();
+export async function predictYield(data) {
+  // Simulate network delay
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(dummyYieldData);
+    }, 1500);
+  });
 }

@@ -13,12 +13,8 @@ import Svg, {
   Text as SvgText,
 } from 'react-native-svg';
 
-import {
-  colors,
-  spacing,
-  borderRadius,
-  typography,
-} from '../theme/theme';
+import { colors, spacing, borderRadius, typography } from '../theme/aztecTheme';
+import { wp, hp } from '../utils/responsive';
 
 export default function ChartWidget({
   title,
@@ -28,10 +24,11 @@ export default function ChartWidget({
   unit = '',
   height = 220,
 }) {
-  const { width } = useWindowDimensions();
+  const { width, height: windowHeight } = useWindowDimensions();
 
-  const chartWidth = width - 70;
-  const chartHeight = height - 40;
+  // Use responsive percentages for chart size
+  const chartWidth = wp(90); // 90% of screen width
+  const chartHeight = hp(30); // 30% of screen height (adjust as needed)
 
   const values = useMemo(
     () =>
@@ -209,6 +206,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    overflow: 'hidden',
   },
 
   title: {

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
-import { predictYield } from '../../../src/services/yieldPrediction';
 import useSensorData from '../../../src/hooks/useSensorData';
 import { predictGrowth } from "../../../src/services/growthPrediction";
 
@@ -18,41 +17,25 @@ export default function YieldScreen() {
   const [results, setResults] = useState(null);
 
 const handlePredict = async () => {
-
     try {
-
         setLoading(true);
         setResults(null);
-        console.log("Sending request...");
-        console.log("Current:", current);
+        
         const payload = {
-        temperature: current.temperature,
-        humidity: current.humidity,
-        ph: current.ph,
-        tds: Math.round(current.ec * 1),
-      };
+          temperature: current?.temperature ?? 25,
+          humidity: current?.humidity ?? 60,
+          ph: current?.ph ?? 6.0,
+          tds: current?.ec ? Math.round(current.ec * 2) : 500,
+        };
 
-      console.log(payload);
-
-      const response = await predictGrowth({
-        temperature: current.temperature,
-        humidity: current.humidity,
-        ph: current.ph,
-        tds: Math.round(current.ec),
-      });
-
+        const response = await predictGrowth(payload);
         setResults(response.prediction);
 
     } catch (e) {
-
         console.log(e);
-
     } finally {
-
         setLoading(false);
-
     }
-
 };
 
   return (
@@ -114,28 +97,28 @@ const handlePredict = async () => {
 
       {results && !loading && (
         <View style={styles.resultsArea}>
-    <Text style={styles.resultsTitle}>AI Growth Prediction</Text>
+          <Text style={styles.resultsTitle}>AI Growth Prediction</Text>
 
-    <View style={styles.primaryResultCard}>
-      <Text style={styles.timeValue}>
-        {results.harvestTime}
-      </Text>
+          <View style={styles.primaryResultCard}>
+            <Text style={styles.timeValue}>
+              {results.harvestTime}
+            </Text>
 
-      <Text style={styles.stageText}>
-        {results.growthStatus}
-      </Text>
-    </View>
+            <Text style={styles.stageText}>
+              {results.growthStatus}
+            </Text>
+          </View>
 
-    <Text style={styles.factorsTitle}>
-      Recommendations
-    </Text>
+          <Text style={styles.factorsTitle}>
+            Recommendations
+          </Text>
 
-    {results.recommendations.map((item, index) => (
-      <Text key={index} style={styles.conditionText}>
-        • {item}
-      </Text>
-    ))}
-  </View>
+          {results.recommendations?.map((item, index) => (
+            <Text key={index} style={styles.conditionText}>
+              • {item}
+            </Text>
+          ))}
+        </View>
       )}
       
       <View style={{ height: 40 }} />

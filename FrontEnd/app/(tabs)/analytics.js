@@ -10,12 +10,7 @@ import {
 import ChartWidget from '../../src/components/ChartWidget';
 import useSensorData from '../../src/hooks/useSensorData';
 
-import {
-  colors,
-  spacing,
-  borderRadius,
-  typography,
-} from '../../src/theme/theme';
+import { colors, spacing, borderRadius, typography } from '../../src/theme/aztecTheme';
 
 import {
   SENSOR_KEYS,
