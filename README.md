@@ -375,6 +375,17 @@ Build profiles are defined in `eas.json` (`development`, `preview`, `production`
 
 ---
 
+## 👨‍💻 Developers
+
+| S.No | Name | Email |
+| :--- | :--- | :--- |
+| 1 | Prithvi Singh | [140890501+Keys-3@users.noreply.github.com](mailto:140890501+Keys-3@users.noreply.github.com) |
+| 2 | Vaibhav Sharma | |
+| 3 | Samarth Sharma | |
+| 4 | Samyak Jain | |
+
+---
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
