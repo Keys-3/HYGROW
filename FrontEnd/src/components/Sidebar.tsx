@@ -17,10 +17,10 @@ import { useThemeColors } from '../theme/theme';
 const getNavItems = (role: string) => [
   { name: 'Dashboard', icon: House, href: '/dashboard', roles: ['farmer', 'admin'] },
   { name: 'AI Tools', icon: Bot, href: '/ai', roles: ['farmer', 'admin'] },
-  { name: 'Market', icon: ShoppingCart, href: '/market', roles: ['customer'] },
   { name: 'Inventory', icon: Warehouse, href: '/inventory', roles: ['farmer', 'admin'] },
   { name: 'Analytics', icon: BarChart3, href: '/analytics', roles: ['farmer', 'admin'] },
-  { name: 'Orders', icon: Package, href: '/orders', roles: ['customer'] },
+  { name: 'Market', icon: ShoppingCart, href: '/market', roles: ['customer', 'admin'] },
+  { name: 'Orders', icon: Package, href: '/orders', roles: ['customer', 'admin'] },
   { name: 'Setting', icon: Settings, href: '/settings', roles: ['farmer', 'customer', 'admin'] },
 ].filter(item => item.roles.includes(role));
 

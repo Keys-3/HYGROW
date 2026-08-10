@@ -53,7 +53,7 @@ export default function EditInventoryScreen() {
   const editingItem = inventory.find((item) => item.id === inventoryId);
 
   useEffect(() => {
-    if (user?.role === 'farmer') {
+    if (user?.role === 'farmer' || user?.role === 'admin') {
       const unsubscribe = fetchInventory();
       return () => {
         if (typeof unsubscribe === 'function') unsubscribe();

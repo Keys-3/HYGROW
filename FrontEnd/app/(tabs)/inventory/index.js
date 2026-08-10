@@ -7,10 +7,16 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  ScrollView,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import useInventory from '../../../src/hooks/useInventory';
+import { deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../../../firebase';
+import useAdminUsers from '../../../src/hooks/useAdminUsers';
 import useAppStore from '../../../src/store/useAppStore';
 import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
 import { formatDate } from '../../../src/utils/helpers';
@@ -36,7 +42,12 @@ function InventoryCard({ item, onPress, themeColors, styles }) {
               <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
             </View>
           </View>
-          <Text style={styles.cardCategory}>{item.category}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={styles.cardCategory}>{item.category}</Text>
+            {item.farmer_name && (
+              <Text style={styles.cardCategory}>Farmer: {item.farmer_name}</Text>
+            )}
+          </View>
         </View>
 
         <View style={styles.cardBody}>
@@ -62,19 +73,39 @@ function InventoryCard({ item, onPress, themeColors, styles }) {
 export default function InventoryScreen() {
   const router = useRouter();
   const { inventory, loading, error, fetchInventory } = useInventory();
+  const { users: adminUsers } = useAdminUsers();
   const user = useAppStore((state) => state.user);
+  const adminSelectedFarmerId = useAppStore((state) => state.adminSelectedFarmerId);
   const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
   const themeColors = useThemeColors();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   useEffect(() => {
-    if (user?.role === 'farmer') {
+    if (user?.role === 'farmer' || user?.role === 'admin') {
       const unsubscribe = fetchInventory();
       return () => {
         if (typeof unsubscribe === 'function') unsubscribe();
       };
     }
   }, [fetchInventory, user]);
+
+  // Dynamic cleanup for orphaned inventory (farmer no longer exists)
+  useEffect(() => {
+    if (user?.role === 'admin' && inventory.length > 0 && adminUsers.length > 0) {
+      const validIds = adminUsers.map(u => u.id);
+      const orphanedInventory = inventory.filter(i => !validIds.includes(i.farmer_id));
+      
+      orphanedInventory.forEach(async (item) => {
+        try {
+          console.log('Cleaning up orphaned inventory:', item.id);
+          await deleteDoc(doc(db, 'inventory', item.id));
+        } catch (e) {
+          console.error('Failed to delete orphaned inventory:', e);
+        }
+      });
+    }
+  }, [inventory, user, adminUsers]);
 
   const navigateToEdit = (itemId = null) => {
     if (itemId) {
@@ -89,80 +120,127 @@ export default function InventoryScreen() {
     setTimeout(() => setRefreshing(false), 500);
   };
 
-  if (!user || user.role !== 'farmer') {
+  const filteredInventory = useMemo(() => {
+    let items = inventory;
+    
+    // Search filter
+    if (search) {
+      const searchTerm = search.toLowerCase();
+      items = items.filter(i => 
+        (i.title || '').toLowerCase().includes(searchTerm) ||
+        (i.category || '').toLowerCase().includes(searchTerm)
+      );
+    }
+
+    if (user?.role === 'admin' && adminSelectedFarmerId) {
+      items = items.filter(i => i.farmer_id === adminSelectedFarmerId);
+    }
+    // Attach farmer names for admin view
+    if (user?.role === 'admin') {
+      return items.map(item => {
+        const farmer = adminUsers.find(u => u.id === item.farmer_id);
+        return { ...item, farmer_name: farmer?.farm_name || farmer?.name || 'Unknown Farmer' };
+      });
+    }
+    return items;
+  }, [inventory, user, adminSelectedFarmerId, adminUsers, search]);
+
+  const totalItems = filteredInventory.length;
+  const listedItems = filteredInventory.filter((i) => i.is_listed).length;
+  const totalStock = filteredInventory.reduce((sum, i) => sum + i.quantity, 0);
+
+  const farmersList = useMemo(() => {
+    return adminUsers.filter(u => u.role === 'farmer' || u.role === 'admin');
+  }, [adminUsers]);
+
+  if (!user || (user.role !== 'farmer' && user.role !== 'admin')) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyEmoji}>🔒</Text>
-        <Text style={styles.emptyTitle}>Farmer Access Only</Text>
+        <Text style={styles.emptyTitle}>Access Restricted</Text>
         <Text style={styles.emptySubtitle}>
-          Inventory management is available for farmers only
+          Inventory management is available for farmers and admins only
         </Text>
       </View>
     );
   }
 
-  const totalItems = inventory.length;
-  const listedItems = inventory.filter((i) => i.is_listed).length;
-  const totalStock = inventory.reduce((sum, i) => sum + i.quantity, 0);
+
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <GradientText colors={themeColors.gradients.primary} style={styles.title}>
-          📦 Inventory
-        </GradientText>
-        <Text style={styles.subtitle}>Manage your farm products</Text>
-      </View>
+      <FlatList
+        ListHeaderComponent={(
+          <>
+            <View style={styles.header}>
+              <GradientText colors={themeColors.gradients.primary} style={styles.title}>
+                📦 Inventory
+              </GradientText>
+              <Text style={styles.subtitle}>Manage your farm products</Text>
+            </View>
 
-      {/* Stats Cards */}
-      <View style={styles.statsRow}>
-        <LinearGradient colors={themeColors.cardGradients.default} style={styles.statCard}>
-          <Text style={[styles.statValue, { color: themeColors.text }]}>{totalItems}</Text>
-          <Text style={styles.statLabel}>Total Items</Text>
-        </LinearGradient>
-        <LinearGradient colors={themeColors.cardGradients.default} style={styles.statCard}>
-          <GradientText colors={themeColors.gradients.primary} style={styles.statValue}>
-            {listedItems}
-          </GradientText>
-          <Text style={styles.statLabel}>Listed</Text>
-        </LinearGradient>
-        <LinearGradient colors={themeColors.cardGradients.default} style={styles.statCard}>
-          <GradientText colors={themeColors.gradients.ph} style={styles.statValue}>
-            {totalStock.toFixed(0)}
-          </GradientText>
-          <Text style={styles.statLabel}>Total Stock</Text>
-        </LinearGradient>
-      </View>
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search inventory..."
+                placeholderTextColor={themeColors.textMuted}
+                value={search}
+                onChangeText={setSearch}
+              />
+            </View>
 
-      {/* Add Button */}
-      <Pressable
-        style={({ pressed }) => [styles.addBtnWrap, pressed && styles.addBtnPressed]}
-        onPress={() => navigateToEdit()}
-      >
-        <LinearGradient
-          colors={themeColors.gradients.primary}
-          style={styles.addBtn}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <Text style={styles.addBtnText}>+ Add New Item</Text>
-        </LinearGradient>
-      </Pressable>
+            {/* Stats Cards */}
+            <View style={styles.statsRow}>
+              <LinearGradient colors={themeColors.cardGradients.default} style={styles.statCard}>
+                <Text style={[styles.statValue, { color: themeColors.text }]}>{totalItems}</Text>
+                <Text style={styles.statLabel}>Total Items</Text>
+              </LinearGradient>
+              <LinearGradient colors={themeColors.cardGradients.default} style={styles.statCard}>
+                <GradientText colors={themeColors.gradients.primary} style={styles.statValue}>
+                  {listedItems}
+                </GradientText>
+                <Text style={styles.statLabel}>Listed</Text>
+              </LinearGradient>
+              <LinearGradient colors={themeColors.cardGradients.default} style={styles.statCard}>
+                <GradientText colors={themeColors.gradients.ph} style={styles.statValue}>
+                  {totalStock.toFixed(0)}
+                </GradientText>
+                <Text style={styles.statLabel}>Total Stock</Text>
+              </LinearGradient>
+            </View>
 
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
+            {/* Add Button */}
+            <Pressable
+              style={({ pressed }) => [styles.addBtnWrap, pressed && styles.addBtnPressed]}
+              onPress={() => navigateToEdit()}
+            >
+              <LinearGradient
+                colors={themeColors.gradients.primary}
+                style={styles.addBtn}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.addBtnText}>+ Add New Item</Text>
+              </LinearGradient>
+            </Pressable>
 
-      {loading && inventory.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={themeColors.primary} />
-          <Text style={styles.loadingText}>Loading inventory...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={inventory}
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {loading && filteredInventory.length === 0 ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={themeColors.primary} />
+                <Text style={styles.loadingText}>Loading inventory...</Text>
+              </View>
+            ) : null}
+          </>
+        )}
+        data={loading && filteredInventory.length === 0 ? [] : filteredInventory}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <InventoryCard 
@@ -205,12 +283,11 @@ export default function InventoryScreen() {
             </View>
           }
         />
-      )}
     </View>
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
@@ -408,5 +485,94 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
     color: '#FFFFFF', 
+  },
+  filterContainer: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  dropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.surfaceLight,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+  },
+  dropdownBtnText: {
+    ...typography.body,
+    color: theme.text,
+  },
+  dropdownIcon: {
+    color: theme.textSecondary,
+    fontSize: 12,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surfaceLight,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  searchIcon: {
+    fontSize: 16,
+    marginRight: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    ...typography.body,
+    color: theme.text,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: theme.background,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.lg,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: theme.text,
+  },
+  modalCloseText: {
+    ...typography.body,
+    color: theme.primary,
+    fontWeight: '600',
+  },
+  modalScroll: {
+    marginBottom: spacing.md,
+  },
+  modalItem: {
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.xs,
+  },
+  modalItemActive: {
+    backgroundColor: theme.primary + '15',
+  },
+  modalItemText: {
+    ...typography.body,
+    color: theme.text,
+  },
+  modalItemTextActive: {
+    color: theme.primary,
+    fontWeight: '700',
   },
 });

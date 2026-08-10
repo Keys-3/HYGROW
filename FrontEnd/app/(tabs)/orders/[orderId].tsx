@@ -1,24 +1,24 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, TextInput, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import useOrders from '../../../src/hooks/useOrders';
 import useAppStore from '../../../src/store/useAppStore';
-import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
+import { useThemeColors, spacing, borderRadius, typography } from '../../../src/theme/theme';
 import { formatDate, formatTime } from '../../../src/utils/helpers';
 import CustomAlert from '../../../src/components/CustomAlert';
 
-type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
 const getStatusConfig = (colors: any): Record<OrderStatus, { color: string; label: string; description: string }> => ({
   pending: { color: colors.warning, label: 'Pending', description: 'Order placed, awaiting confirmation' },
   confirmed: { color: colors.info, label: 'Confirmed', description: 'Order confirmed by seller' },
   processing: { color: colors.primary, label: 'Processing', description: 'Order is being prepared' },
-  shipped: { color: colors.info, label: 'Shipped', description: 'Order is on the way' },
+  out_for_delivery: { color: colors.info, label: 'Out for Delivery', description: 'Order is out for delivery' },
   delivered: { color: colors.success, label: 'Delivered', description: 'Order delivered successfully' },
   cancelled: { color: colors.danger, label: 'Cancelled', description: 'Order has been cancelled' },
 });
 
-const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'processing', 'out_for_delivery', 'delivered'];
 
 export default function OrderDetailScreen() {
   const { orderId } = useLocalSearchParams();
@@ -29,6 +29,13 @@ export default function OrderDetailScreen() {
   const user = useAppStore((state) => state.user);
   const [updating, setUpdating] = useState(false);
   const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [] as any });
+  
+  // Tracking Modal State
+  const [trackingModalVisible, setTrackingModalVisible] = useState(false);
+  const [trackingLocation, setTrackingLocation] = useState('');
+  const [trackingNotes, setTrackingNotes] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<OrderStatus>('pending');
+  const [isSimulating, setIsSimulating] = useState(false);
 
   const order = orders.find(o => o.id === orderId);
 
@@ -55,8 +62,8 @@ export default function OrderDetailScreen() {
     );
   }
 
-  const statusConfig = getStatusConfig(themeColors)[order.status] || getStatusConfig(themeColors).pending;
-  const currentStepIndex = STATUS_FLOW.indexOf(order.status);
+  const statusConfig = getStatusConfig(themeColors)[order.status as OrderStatus] || getStatusConfig(themeColors).pending;
+  const currentStepIndex = STATUS_FLOW.indexOf(order.status as OrderStatus);
   const isCustomer = user?.role === 'customer';
   const isSeller = order.items?.some(item => item.seller_id === user?.id);
   const isAdmin = user?.role === 'admin';
@@ -101,44 +108,35 @@ export default function OrderDetailScreen() {
     });
   };
 
-  const handleUpdateStatus = () => {
-    const nextStatus = STATUS_FLOW[currentStepIndex + 1];
-    if (!nextStatus) return;
+  const openUpdateModal = () => {
+    const nextStatus = STATUS_FLOW[currentStepIndex + 1] || STATUS_FLOW[STATUS_FLOW.length - 1];
+    setSelectedStatus(nextStatus);
+    setTrackingLocation('');
+    setTrackingNotes('');
+    setTrackingModalVisible(true);
+  };
 
-    setCustomAlert({
-      visible: true,
-      title: 'Update Status',
-      message: `Mark order as ${getStatusConfig(themeColors)[nextStatus]?.label}?`,
-      buttons: [
-        { text: 'Cancel', style: 'cancel', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) },
-        {
-          text: 'Update',
-          style: 'default',
-          onPress: async () => {
-            setCustomAlert((prev: any) => ({ ...prev, visible: false }));
-            try {
-              setUpdating(true);
-              await updateOrderStatus(order.id, nextStatus);
-              setCustomAlert({
-                visible: true,
-                title: 'Success',
-                message: `Order marked as ${getStatusConfig(themeColors)[nextStatus]?.label}`,
-                buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
-              });
-            } catch (err: any) {
-              setCustomAlert({
-                visible: true,
-                title: 'Error',
-                message: err.message,
-                buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
-              });
-            } finally {
-              setUpdating(false);
-            }
-          }
-        }
-      ]
-    });
+  const submitTrackingUpdate = async () => {
+    try {
+      setUpdating(true);
+      setTrackingModalVisible(false);
+      await updateOrderStatus(order.id, selectedStatus, trackingNotes, trackingLocation);
+      setCustomAlert({
+        visible: true,
+        title: 'Success',
+        message: `Order updated successfully`,
+        buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
+      });
+    } catch (err: any) {
+      setCustomAlert({
+        visible: true,
+        title: 'Error',
+        message: err.message,
+        buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
+      });
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleDelete = () => {
@@ -173,125 +171,239 @@ export default function OrderDetailScreen() {
     });
   };
 
+  const simulateProgress = async () => {
+    if (isSimulating) return;
+    setIsSimulating(true);
+    let currentIdx = currentStepIndex;
+    
+    const simulateStep = async () => {
+      if (currentIdx >= STATUS_FLOW.length - 1) {
+        setIsSimulating(false);
+        return;
+      }
+      currentIdx++;
+      const nextStatus = STATUS_FLOW[currentIdx];
+      
+      const mockLocations: Record<string, string> = {
+        'confirmed': 'Local Facility',
+        'processing': 'Warehouse A',
+        'out_for_delivery': 'City Distribution Center',
+        'delivered': 'Customer Address'
+      };
+      
+      const mockNotes: Record<string, string> = {
+        'confirmed': 'Order received and confirmed.',
+        'processing': 'Items are being picked and packed.',
+        'out_for_delivery': 'Package is out for delivery in your area.',
+        'delivered': 'Package delivered.'
+      };
+
+      try {
+        await updateOrderStatus(order.id, nextStatus, mockNotes[nextStatus], mockLocations[nextStatus]);
+        setTimeout(simulateStep, 3000); // Wait 3 seconds before next step
+      } catch (err) {
+        console.error(err);
+        setIsSimulating(false);
+      }
+    };
+    
+    simulateStep();
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.back()} style={styles.backBtn}>
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Order #{order.id.slice(0, 8).toUpperCase()}</Text>
-        <Text style={styles.date}>{formatDate(order.created_at)} at {formatTime(order.created_at)}</Text>
-      </View>
-
-      {/* Status Progress */}
-      <View style={styles.progressCard}>
-        <Text style={styles.sectionTitle}>Order Status</Text>
-        <View style={styles.statusRow}>
-          <View style={[styles.currentStatusBadge, { backgroundColor: statusConfig.color + '20' }]}>
-            <Text style={[styles.currentStatusText, { color: statusConfig.color }]}>{statusConfig.label}</Text>
-          </View>
-          <Text style={styles.statusDescription}>{statusConfig.description}</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Order #{order.id.slice(0, 8).toUpperCase()}</Text>
+          <Text style={styles.date}>{formatDate(order.created_at)} at {formatTime(order.created_at)}</Text>
         </View>
 
-        {/* Progress Steps */}
-        <View style={styles.progressSteps}>
-          {STATUS_FLOW.map((status, index) => {
-            const config = getStatusConfig(themeColors)[status];
-            const isCompleted = index <= currentStepIndex;
-            const isCurrent = index === currentStepIndex;
-
-            return (
-              <View key={status} style={styles.stepContainer}>
-                <View style={[styles.stepDot, isCompleted && { backgroundColor: config.color }]}>
-                  {isCompleted ? (
-                    <Text style={styles.stepCheck}>✓</Text>
-                  ) : (
-                    <View style={styles.stepDotEmpty} />
-                  )}
-                </View>
-                <Text style={[styles.stepLabel, isCurrent && styles.stepLabelActive]}>{config.label}</Text>
-              </View>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Items */}
-      <View style={styles.itemsCard}>
-        <Text style={styles.sectionTitle}>Items ({order.items?.length || 0})</Text>
-        {order.items?.map((item, i) => (
-          <View key={i} style={styles.itemRow}>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>{item.product_name}</Text>
-              <Text style={styles.itemQty}>Quantity: {item.quantity} {item.unit.replace('per ', '')}</Text>
+        {/* Status Progress */}
+        <View style={styles.progressCard}>
+          <Text style={styles.sectionTitle}>Order Status</Text>
+          <View style={styles.statusRow}>
+            <View style={[styles.currentStatusBadge, { backgroundColor: statusConfig.color + '20' }]}>
+              <Text style={[styles.currentStatusText, { color: statusConfig.color }]}>{statusConfig.label}</Text>
             </View>
-            <Text style={styles.itemPrice}>₹{item.total_price.toFixed(2)}</Text>
+            <Text style={styles.statusDescription}>{statusConfig.description}</Text>
           </View>
-        ))}
-        <View style={styles.divider} />
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalAmount}>₹{order.total_amount.toFixed(2)}</Text>
-        </View>
-      </View>
 
-      {/* Shipping Address */}
-      {order.shipping_address && (
-        <View style={styles.addressCard}>
-          <Text style={styles.sectionTitle}>Shipping Address</Text>
-          <Text style={styles.addressText}>{order.shipping_address}</Text>
-          {order.shipping_city && (
-            <Text style={styles.addressText}>{order.shipping_city}, {order.shipping_state} - {order.shipping_pincode}</Text>
-          )}
-        </View>
-      )}
+          {/* Progress Steps */}
+          <View style={styles.progressSteps}>
+            {STATUS_FLOW.map((status, index) => {
+              const config = getStatusConfig(themeColors)[status];
+              const isCompleted = index <= currentStepIndex;
+              const isCurrent = index === currentStepIndex;
 
-      {/* Tracking History */}
-      {order.tracking && order.tracking.length > 0 && (
-        <View style={styles.trackingCard}>
-          <Text style={styles.sectionTitle}>Tracking History</Text>
-          {order.tracking.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((track, i) => {
-            const trackConfig = getStatusConfig(themeColors)[track.status as OrderStatus] || getStatusConfig(themeColors).pending;
-            return (
-              <View key={i} style={styles.trackItem}>
-                <View style={[styles.trackDot, { backgroundColor: trackConfig.color }]} />
-                <View style={styles.trackContent}>
-                  <Text style={styles.trackStatus}>{trackConfig.label}</Text>
-                  {track.notes && <Text style={styles.trackNotes}>{track.notes}</Text>}
-                  <Text style={styles.trackTime}>{formatDate(track.created_at)} {formatTime(track.created_at)}</Text>
+              return (
+                <View key={status} style={styles.stepContainer}>
+                  <View style={[styles.stepDot, isCompleted && { backgroundColor: config.color }]}>
+                    {isCompleted ? (
+                      <Text style={styles.stepCheck}>✓</Text>
+                    ) : (
+                      <View style={styles.stepDotEmpty} />
+                    )}
+                  </View>
+                  <Text style={[styles.stepLabel, isCurrent && styles.stepLabelActive]}>{config.label}</Text>
                 </View>
-              </View>
-            );
-          })}
+              );
+            })}
+          </View>
         </View>
-      )}
 
-      {/* Actions */}
-      {canCancel && (
-        <Pressable style={[styles.actionBtn, styles.cancelBtn]} onPress={handleCancel} disabled={updating}>
-          {updating ? <ActivityIndicator color={themeColors.danger} /> : (
-            <Text style={styles.cancelBtnText}>Cancel Order</Text>
-          )}
-        </Pressable>
-      )}
+        {/* Items */}
+        <View style={styles.itemsCard}>
+          <Text style={styles.sectionTitle}>Items ({order.items?.length || 0})</Text>
+          {order.items?.map((item, i) => (
+            <View key={i} style={styles.itemRow}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{item.product_name}</Text>
+                <Text style={styles.itemQty}>Quantity: {item.quantity} {item.unit.replace('per ', '')}</Text>
+              </View>
+              <Text style={styles.itemPrice}>₹{item.total_price.toFixed(2)}</Text>
+            </View>
+          ))}
+          <View style={styles.divider} />
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalAmount}>₹{order.total_amount.toFixed(2)}</Text>
+          </View>
+        </View>
 
-      {canUpdateStatus && (
-        <Pressable style={[styles.actionBtn, styles.updateBtn]} onPress={handleUpdateStatus} disabled={updating}>
-          {updating ? <ActivityIndicator color={themeColors.background} /> : (
-            <Text style={styles.updateBtnText}>Update Status</Text>
-          )}
-        </Pressable>
-      )}
+        {/* Shipping Address */}
+        {order.shipping_address && (
+          <View style={styles.addressCard}>
+            <Text style={styles.sectionTitle}>Shipping Address</Text>
+            <Text style={styles.addressText}>{order.shipping_address}</Text>
+            {order.shipping_city && (
+              <Text style={styles.addressText}>{order.shipping_city}, {order.shipping_state} - {order.shipping_pincode}</Text>
+            )}
+          </View>
+        )}
 
-      {canDelete && (
-        <Pressable style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDelete} disabled={updating}>
-          {updating ? <ActivityIndicator color={themeColors.danger} /> : (
-            <Text style={styles.deleteBtnText}>Delete Order History</Text>
-          )}
-        </Pressable>
-      )}
+        {/* Tracking History */}
+        {order.tracking && order.tracking.length > 0 && (
+          <View style={styles.trackingCard}>
+            <Text style={styles.sectionTitle}>Tracking History</Text>
+            {order.tracking.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((track: any, i: number) => {
+              const trackConfig = getStatusConfig(themeColors)[track.status as OrderStatus] || getStatusConfig(themeColors).pending;
+              return (
+                <View key={i} style={styles.trackItem}>
+                  <View style={[styles.trackDot, { backgroundColor: trackConfig.color }]} />
+                  <View style={styles.trackContent}>
+                    <Text style={styles.trackStatus}>{trackConfig.label}</Text>
+                    {track.location && <Text style={styles.trackLocation}>📍 {track.location}</Text>}
+                    {track.notes && <Text style={styles.trackNotes}>{track.notes}</Text>}
+                    <Text style={styles.trackTime}>{formatDate(track.created_at)} {formatTime(track.created_at)}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Actions */}
+        {canCancel && (
+          <Pressable style={[styles.actionBtn, styles.cancelBtn]} onPress={handleCancel} disabled={updating || isSimulating}>
+            {updating ? <ActivityIndicator color={themeColors.danger} /> : (
+              <Text style={styles.cancelBtnText}>Cancel Order</Text>
+            )}
+          </Pressable>
+        )}
+
+        {canUpdateStatus && (
+          <Pressable style={[styles.actionBtn, styles.updateBtn]} onPress={openUpdateModal} disabled={updating || isSimulating}>
+            {updating ? <ActivityIndicator color={themeColors.background} /> : (
+              <Text style={styles.updateBtnText}>Update Tracking</Text>
+            )}
+          </Pressable>
+        )}
+
+        {canUpdateStatus && (
+          <Pressable style={[styles.actionBtn, styles.simulateBtn]} onPress={simulateProgress} disabled={updating || isSimulating}>
+            {isSimulating ? <ActivityIndicator color={themeColors.primary} /> : (
+              <Text style={styles.simulateBtnText}>Simulate Auto-Track</Text>
+            )}
+          </Pressable>
+        )}
+
+        {canDelete && (
+          <Pressable style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDelete} disabled={updating || isSimulating}>
+            {updating ? <ActivityIndicator color={themeColors.danger} /> : (
+              <Text style={styles.deleteBtnText}>Delete Order History</Text>
+            )}
+          </Pressable>
+        )}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      {/* Manual Tracking Modal */}
+      <Modal
+        visible={trackingModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setTrackingModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Update Order Tracking</Text>
+            
+            <Text style={styles.inputLabel}>Status</Text>
+            <View style={styles.statusChips}>
+              {STATUS_FLOW.map(status => (
+                <Pressable 
+                  key={status}
+                  style={[
+                    styles.statusChip, 
+                    selectedStatus === status && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }
+                  ]}
+                  onPress={() => setSelectedStatus(status)}
+                >
+                  <Text style={[
+                    styles.statusChipText,
+                    selectedStatus === status && { color: themeColors.background }
+                  ]}>{getStatusConfig(themeColors)[status].label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.inputLabel}>Current Location (Optional)</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Warehouse A"
+              placeholderTextColor={themeColors.textSecondary}
+              value={trackingLocation}
+              onChangeText={setTrackingLocation}
+            />
+
+            <Text style={styles.inputLabel}>Notes (Optional)</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              placeholder="e.g. Package is ready for dispatch"
+              placeholderTextColor={themeColors.textSecondary}
+              value={trackingNotes}
+              onChangeText={setTrackingNotes}
+              multiline
+              numberOfLines={3}
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setTrackingModalVisible(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalSubmitBtn} onPress={submitTrackingUpdate}>
+                <Text style={styles.modalSubmitBtnText}>Save Update</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <CustomAlert 
         visible={customAlert.visible}
@@ -300,9 +412,7 @@ export default function OrderDetailScreen() {
         buttons={customAlert.buttons}
         onDismiss={() => setCustomAlert((prev: any) => ({ ...prev, visible: false }))}
       />
-
-      <View style={{ height: 40 }} />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -402,6 +512,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     ...typography.caption,
     textAlign: 'center',
     color: colors.textSecondary,
+    fontSize: 10,
   },
   stepLabelActive: {
     color: colors.primary,
@@ -500,6 +611,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginBottom: 2,
     color: colors.text,
   },
+  trackLocation: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    marginBottom: 2,
+    fontWeight: '500',
+  },
   trackNotes: {
     ...typography.bodySmall,
     color: colors.textSecondary,
@@ -531,6 +648,16 @@ const createStyles = (colors: any) => StyleSheet.create({
   updateBtnText: {
     ...typography.body,
     color: colors.background,
+    fontWeight: '600',
+  },
+  simulateBtn: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  simulateBtnText: {
+    ...typography.body,
+    color: colors.primary,
     fontWeight: '600',
   },
   deleteBtn: {
@@ -569,6 +696,98 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   errorBackBtnText: {
+    ...typography.body,
+    color: colors.background,
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.lg,
+    paddingBottom: spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  modalTitle: {
+    ...typography.h2,
+    color: colors.text,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
+  },
+  inputLabel: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  textInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    color: colors.text,
+    ...typography.body,
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  statusChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  statusChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  statusChipText: {
+    ...typography.bodySmall,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    marginTop: spacing.xl,
+    gap: spacing.md,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  modalCancelBtnText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  modalSubmitBtn: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  modalSubmitBtnText: {
     ...typography.body,
     color: colors.background,
     fontWeight: '600',

@@ -4,14 +4,21 @@ import { useRouter } from 'expo-router';
 import { useThemeColors, spacing, borderRadius, typography } from '../../../src/theme/theme';
 import MarketListingCard from '../../../src/components/MarketListingCard';
 import useInventory from '../../../src/hooks/useInventory';
+import useAdminUsers from '../../../src/hooks/useAdminUsers';
+import useAppStore from '../../../src/store/useAppStore';
+import { deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../../../firebase';
 
 export default function MarketScreen() {
   const router = useRouter();
   const themeColors = useThemeColors();
   const styles = createStyles(themeColors);
   const { listings, loading, error, subscribeToMarketListings, fetchMarketListings } = useInventory();
+  const { users: adminUsers } = useAdminUsers();
+  const user = useAppStore((state) => state.user);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const adminSelectedFarmerId = useAppStore((state) => state.adminSelectedFarmerId);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -21,6 +28,23 @@ export default function MarketScreen() {
     };
   }, [subscribeToMarketListings]);
 
+  // Dynamic cleanup for orphaned listings (farmer no longer exists)
+  useEffect(() => {
+    if (user?.role === 'admin' && listings.length > 0 && adminUsers.length > 0) {
+      const validIds = adminUsers.map(u => u.id);
+      const orphanedListings = listings.filter(l => !validIds.includes(l.farmer_id));
+      
+      orphanedListings.forEach(async (listing) => {
+        try {
+          console.log('Cleaning up orphaned listing:', listing.id);
+          await deleteDoc(doc(db, 'market_listings', listing.id));
+        } catch (e) {
+          console.error('Failed to delete orphaned listing:', e);
+        }
+      });
+    }
+  }, [listings, user, adminUsers]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchMarketListings();
@@ -28,11 +52,16 @@ export default function MarketScreen() {
   }, [fetchMarketListings]);
 
   const filteredListings = listings.filter((l) => {
-    const matchesSearch = (l.title || '').toLowerCase().includes(search.toLowerCase()) ||
-                          (l.category || '').toLowerCase().includes(search.toLowerCase());
+    const searchTerm = search.toLowerCase();
+    const matchesSearch = (l.title || '').toLowerCase().includes(searchTerm) ||
+                          (l.category || '').toLowerCase().includes(searchTerm) ||
+                          (l.farmer_name || '').toLowerCase().includes(searchTerm);
     const matchesCategory = activeCategory === 'All' || (l.category || '').toLowerCase() === activeCategory.toLowerCase();
-    return matchesSearch && matchesCategory;
+    const matchesFarmer = user?.role === 'admin' && adminSelectedFarmerId ? l.farmer_id === adminSelectedFarmerId : true;
+    return matchesSearch && matchesCategory && matchesFarmer;
   });
+
+  const farmersList = adminUsers.filter(u => u.role === 'farmer' || u.role === 'admin');
 
   const navigateToDetail = (id) => {
     router.push(`/(tabs)/market/${id}`);
@@ -40,59 +69,63 @@ export default function MarketScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🛒 Marketplace</Text>
-        <Text style={styles.subtitle}>
-          Fresh produce from local hydroponic farms
-        </Text>
-      </View>
+      <FlatList
+        ListHeaderComponent={(
+          <>
+            <View style={styles.header}>
+              <Text style={styles.title}>🛒 Marketplace</Text>
+              <Text style={styles.subtitle}>
+                Fresh produce from local hydroponic farms
+              </Text>
+            </View>
 
-      <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search produce, supplies..."
-          placeholderTextColor={themeColors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
+            <View style={styles.searchContainer}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search produce, supplies..."
+                placeholderTextColor={themeColors.textMuted}
+                value={search}
+                onChangeText={setSearch}
+              />
+            </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesRow} contentContainerStyle={styles.categoriesContent}>
-        {['All', 'Vegetables', 'Fruits', 'Herbs', 'Microgreens'].map((cat) => {
-          const isActive = activeCategory === cat;
-          return (
-            <Pressable
-              key={cat}
-              onPress={() => setActiveCategory(cat)}
-              style={({ pressed }) => [
-                styles.categoryPill,
-                isActive && styles.categoryPillActive,
-                pressed && !isActive && styles.categoryPillPressed,
-              ]}
-            >
-              <Text style={[styles.categoryPillText, isActive && styles.categoryPillTextActive]}>{cat}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesRow} contentContainerStyle={styles.categoriesContent}>
+              {['All', 'Vegetables', 'Fruits', 'Herbs', 'Microgreens'].map((cat) => {
+                const isActive = activeCategory === cat;
+                return (
+                  <Pressable
+                    key={cat}
+                    onPress={() => setActiveCategory(cat)}
+                    style={({ pressed }) => [
+                      styles.categoryPill,
+                      isActive && styles.categoryPillActive,
+                      pressed && !isActive && styles.categoryPillPressed,
+                    ]}
+                  >
+                    <Text style={[styles.categoryPillText, isActive && styles.categoryPillTextActive]}>{cat}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
-      {loading && listings.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={themeColors.primary} />
-          <Text style={styles.loadingText}>Loading fresh produce...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorEmoji}>😕</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.retryBtn} onPress={fetchMarketListings}>
-            <Text style={styles.retryBtnText}>Try Again</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredListings}
+            {loading && listings.length === 0 ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={themeColors.primary} />
+                <Text style={styles.loadingText}>Loading fresh produce...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorEmoji}>😕</Text>
+                <Text style={styles.errorText}>{error}</Text>
+                <Pressable style={styles.retryBtn} onPress={fetchMarketListings}>
+                  <Text style={styles.retryBtnText}>Try Again</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </>
+        )}
+        data={loading && listings.length === 0 ? [] : filteredListings}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <MarketListingCard
@@ -135,7 +168,6 @@ export default function MarketScreen() {
             </View>
           }
         />
-      )}
     </View>
   );
 }

@@ -19,7 +19,7 @@ export default function MarketListingCard({ listing, onPress }) {
         <Text style={styles.title} numberOfLines={1}>{listing.title}</Text>
         <Text style={styles.price}>{listing.currency}{listing.price} <Text style={styles.unit}>{listing.unit}</Text></Text>
         <View style={styles.sellerRow}>
-          <Text style={styles.sellerName} numberOfLines={1}>👤 {listing.seller?.name}</Text>
+          <Text style={styles.sellerName} numberOfLines={1}>👨‍🌾 Farmer: {listing.seller?.name}</Text>
           <Text style={styles.rating}>⭐ {listing.seller?.rating}</Text>
         </View>
         <View style={styles.footerRow}>

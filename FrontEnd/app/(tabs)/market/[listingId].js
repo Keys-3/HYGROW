@@ -238,7 +238,7 @@ export default function ListingDetailScreen() {
       </View>
 
       {/* Button Row / Actions */}
-      {user?.role === 'customer' ? (
+      {user?.role === 'customer' || user?.role === 'admin' ? (
         <View style={styles.buttonRow}>
           <Pressable
             style={({ pressed }) => [

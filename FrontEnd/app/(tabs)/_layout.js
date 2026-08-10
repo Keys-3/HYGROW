@@ -161,6 +161,17 @@ export default function TabLayout() {
   }
 
   const getTabsForRole = () => {
+    if (userRole === 'admin') {
+      return [
+        { name: 'dashboard', title: 'Dashboard', Icon: Home, label: 'Home', role: 'admin' },
+        { name: 'ai', title: 'AI Tools', Icon: Bot, label: 'AI', role: 'admin' },
+        { name: 'inventory', title: 'Inventory', Icon: Warehouse, label: 'Stock', role: 'admin' },
+        { name: 'analytics', title: 'Analytics', Icon: BarChart3, label: 'Stats', role: 'admin' },
+        { name: 'market', title: 'Market', Icon: ShoppingCart, label: 'Market', role: 'admin' },
+        { name: 'orders', title: 'Orders', Icon: Package, label: 'Orders', role: 'admin' },
+        { name: 'settings', title: 'Setting', Icon: Settings, label: 'Setting', role: 'admin' },
+      ];
+    }
     if (userRole === 'customer') {
       return [
         { name: 'market', title: 'Market', Icon: ShoppingCart, label: 'Market', role: 'customer' },
@@ -263,11 +274,11 @@ export default function TabLayout() {
         options={{
           title: 'Market',
           tabBarIcon: ({ focused }) => <TabIcon Icon={ShoppingCart} label="Market" focused={focused} />,
-          tabBarItemStyle: userRole !== 'customer' ? { display: 'none' } : undefined,
+          tabBarItemStyle: userRole !== 'customer' && userRole !== 'admin' ? { display: 'none' } : undefined,
         }}
         listeners={{
           tabPress: (e) => {
-            if (userRole !== 'customer') {
+            if (userRole !== 'customer' && userRole !== 'admin') {
               e.preventDefault();
               router.replace('/(tabs)/inventory');
             }
@@ -297,11 +308,11 @@ export default function TabLayout() {
         options={{
           title: 'Orders',
           tabBarIcon: ({ focused }) => <TabIcon Icon={Package} label="Orders" focused={focused} />,
-          tabBarItemStyle: userRole === 'farmer' || userRole === 'admin' ? { display: 'none' } : undefined,
+          tabBarItemStyle: userRole === 'farmer' ? { display: 'none' } : undefined,
         }}
         listeners={{
           tabPress: (e) => {
-            if (userRole === 'farmer' || userRole === 'admin') {
+            if (userRole === 'farmer') {
               e.preventDefault();
               router.replace('/(tabs)/dashboard');
             }

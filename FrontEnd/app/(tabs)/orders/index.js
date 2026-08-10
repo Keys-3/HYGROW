@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl, ActivityIndicator, ScrollView, Modal, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import useOrders from '../../../src/hooks/useOrders';
+import useAdminUsers from '../../../src/hooks/useAdminUsers';
 import useAppStore from '../../../src/store/useAppStore';
 import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
 import { formatDate, formatTime } from '../../../src/utils/helpers';
@@ -27,6 +28,8 @@ function OrderCard({ order, onPress }) {
       <View style={styles.cardHeader}>
         <View style={styles.orderInfo}>
           <Text style={styles.orderId}>Order #{order.id.slice(0, 8).toUpperCase()}</Text>
+          {order.buyer_name && <Text style={styles.participantText}>Buyer: {order.buyer_name}</Text>}
+          {order.seller_name && <Text style={styles.participantText}>Seller: {order.seller_name}</Text>}
           <Text style={styles.orderDate}>{formatDate(order.created_at)} at {formatTime(order.created_at)}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: statusConfig.color + '20' }]}>
@@ -67,11 +70,54 @@ export default function OrdersScreen() {
   const themeColors = useThemeColors();
   const styles = createStyles(themeColors);
   const { orders, loading, error, fetchOrders } = useOrders();
+  const { users: adminUsers } = useAdminUsers();
   const user = useAppStore((state) => state.user);
+  const adminSelectedFarmerId = useAppStore((state) => state.adminSelectedFarmerId);
+  const adminSelectedCustomerId = useAppStore((state) => state.adminSelectedCustomerId);
+  const [search, setSearch] = React.useState('');
 
   const navigateToDetail = (orderId) => {
     router.push(`/(tabs)/orders/${orderId}`);
   };
+
+  const filteredOrders = React.useMemo(() => {
+    let items = orders;
+    
+    // Search filter
+    if (search) {
+      const searchTerm = search.toLowerCase();
+      items = items.filter(o => {
+        const orderIdMatch = o.id.toLowerCase().includes(searchTerm);
+        const buyerNameMatch = (o.buyer_name || '').toLowerCase().includes(searchTerm);
+        const sellerNameMatch = (o.seller_name || '').toLowerCase().includes(searchTerm);
+        return orderIdMatch || buyerNameMatch || sellerNameMatch;
+      });
+    }
+
+    if (user?.role === 'admin') {
+      if (adminSelectedFarmerId) {
+        items = items.filter(o => o.seller_id === adminSelectedFarmerId || (o.items && o.items.some(i => i.seller_id === adminSelectedFarmerId)));
+      }
+      if (adminSelectedCustomerId) {
+        items = items.filter(o => o.customer_id === adminSelectedCustomerId);
+      }
+    }
+    if (user?.role === 'admin') {
+      return items.map(o => {
+        const sellerId = o.seller_id || (o.items && o.items.length > 0 ? o.items[0].seller_id : null);
+        const buyer = adminUsers.find(u => u.id === o.customer_id);
+        const seller = adminUsers.find(u => u.id === sellerId);
+        return {
+          ...o,
+          buyer_name: buyer ? (buyer.farm_name || buyer.name) : 'Unknown Buyer',
+          seller_name: seller ? (seller.farm_name || seller.name) : 'Unknown Seller',
+        };
+      });
+    }
+    return items;
+  }, [orders, user, adminSelectedFarmerId, adminSelectedCustomerId, adminUsers, search]);
+
+  const usersList = React.useMemo(() => adminUsers, [adminUsers]);
 
   if (!user) {
     return (
@@ -94,22 +140,37 @@ export default function OrdersScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Orders</Text>
-        <Text style={styles.subtitle}>{orders.length} order{orders.length !== 1 ? 's' : ''}</Text>
-      </View>
-
-      {error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.retryBtn} onPress={fetchOrders}>
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
       <FlatList
-        data={orders}
+        ListHeaderComponent={(
+          <>
+            <View style={styles.header}>
+              <Text style={styles.title}>{user?.role === 'admin' ? 'All System Orders' : 'My Orders'}</Text>
+              <Text style={styles.subtitle}>{filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}</Text>
+            </View>
+
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search by order ID, buyer, or seller..."
+                placeholderTextColor={themeColors.textMuted}
+                value={search}
+                onChangeText={setSearch}
+              />
+            </View>
+
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <Pressable style={styles.retryBtn} onPress={fetchOrders}>
+                  <Text style={styles.retryBtnText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </>
+        )}
+        data={filteredOrders}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <OrderCard order={item} onPress={() => navigateToDetail(item.id)} />
@@ -193,6 +254,12 @@ const createStyles = (colors) => StyleSheet.create({
   orderDate: {
     ...typography.caption,
     color: colors.textSecondary,
+    marginTop: 2,
+  },
+  participantText: {
+    ...typography.caption,
+    color: colors.text,
+    marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -326,5 +393,94 @@ const createStyles = (colors) => StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
     color: colors.background,
+  },
+  filterContainer: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  dropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+  },
+  dropdownBtnText: {
+    ...typography.body,
+    color: colors.text,
+  },
+  dropdownIcon: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchIcon: {
+    fontSize: 16,
+    marginRight: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    ...typography.body,
+    color: colors.text,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.lg,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: colors.text,
+  },
+  modalCloseText: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  modalScroll: {
+    marginBottom: spacing.md,
+  },
+  modalItem: {
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.xs,
+  },
+  modalItemActive: {
+    backgroundColor: colors.primary + '15',
+  },
+  modalItemText: {
+    ...typography.body,
+    color: colors.text,
+  },
+  modalItemTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
 });

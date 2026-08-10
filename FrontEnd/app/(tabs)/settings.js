@@ -9,8 +9,9 @@ import permissionManager from '../../src/services/permissionManager';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GradientText } from '../../src/components/GradientText';
 import { db, auth } from '../../firebase';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
-import { updatePassword } from 'firebase/auth';
+import { doc, updateDoc, setDoc, deleteDoc, getDocs, collection, query, where } from 'firebase/firestore';
+import { updatePassword, deleteUser } from 'firebase/auth';
+import useAdminUsers from '../../src/hooks/useAdminUsers';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -21,9 +22,106 @@ export default function SettingsScreen() {
   const isDarkMode = useAppStore((state) => state.isDarkMode);
   const toggleTheme = useAppStore((state) => state.toggleTheme);
   const updateUser = useAppStore((state) => state.updateUser);
+  const adminSelectedFarmerId = useAppStore((state) => state.adminSelectedFarmerId);
+  const setAdminSelectedFarmerId = useAppStore((state) => state.setAdminSelectedFarmerId);
+  const adminSelectedCustomerId = useAppStore((state) => state.adminSelectedCustomerId);
+  const setAdminSelectedCustomerId = useAppStore((state) => state.setAdminSelectedCustomerId);
+
+  const { users: allUsers } = useAdminUsers();
+  const farmersList = useMemo(() => {
+    const raw = allUsers.filter(u => u.role === 'farmer');
+    const unique = [];
+    const seen = new Set();
+    for (const u of raw) {
+      const key = u.email || u.id;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(u);
+      }
+    }
+    return unique;
+  }, [allUsers]);
+
+  const customersList = useMemo(() => {
+    const raw = allUsers.filter(u => u.role === 'customer');
+    const unique = [];
+    const seen = new Set();
+    for (const u of raw) {
+      const key = u.email || u.id;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(u);
+      }
+    }
+    return unique;
+  }, [allUsers]);
+
+  const [showAdminFarmerModal, setShowAdminFarmerModal] = useState(false);
+  const [showAdminCustomerModal, setShowAdminCustomerModal] = useState(false);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeletingOther, setIsDeletingOther] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      if (user?.role === 'farmer') {
+        const invQuery = query(collection(db, 'inventory'), where('farmer_id', '==', user.id));
+        const invDocs = await getDocs(invQuery);
+        for (const d of invDocs.docs) await deleteDoc(doc(db, 'inventory', d.id));
+        
+        const mktQuery = query(collection(db, 'market_listings'), where('farmer_id', '==', user.id));
+        const mktDocs = await getDocs(mktQuery);
+        for (const d of mktDocs.docs) await deleteDoc(doc(db, 'market_listings', d.id));
+      }
+
+      await deleteDoc(doc(db, 'users', user.id));
+
+      if (auth.currentUser) {
+        await deleteUser(auth.currentUser);
+      }
+
+      logout();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to delete account. You may need to sign out and sign back in to verify your identity before deleting.');
+    } finally {
+      setIsDeletingAccount(false);
+      setShowDeleteAccountModal(false);
+    }
+  };
+
+  const handleDeleteOtherUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingOther(true);
+    try {
+      const targetId = userToDelete.id;
+      
+      const invQuery = query(collection(db, 'inventory'), where('farmer_id', '==', targetId));
+      const invDocs = await getDocs(invQuery);
+      for (const d of invDocs.docs) await deleteDoc(doc(db, 'inventory', d.id));
+      
+      const mktQuery = query(collection(db, 'market_listings'), where('farmer_id', '==', targetId));
+      const mktDocs = await getDocs(mktQuery);
+      for (const d of mktDocs.docs) await deleteDoc(doc(db, 'market_listings', d.id));
+
+      await deleteDoc(doc(db, 'users', targetId));
+
+      alert('User data completely deleted!');
+      setUserToDelete(null);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to delete user. Please check if your Firestore rules have been updated to allow admins to delete documents.');
+    } finally {
+      setIsDeletingOther(false);
+    }
+  };
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -93,6 +191,60 @@ export default function SettingsScreen() {
 
   const handleLogoutPress = () => {
     setShowLogoutModal(true);
+  };
+
+  const [isWipingData, setIsWipingData] = useState(false);
+
+  const handleWipeOrphanedData = async () => {
+    setIsWipingData(true);
+    try {
+      const validEmails = [
+        '2300300100126@ipec.org.in',
+        '2300300100148@ipec.org.in',
+        'prithvis3804@gmail.com'
+      ];
+
+      // 1. Get all valid users from Firestore
+      const usersSnap = await getDocs(collection(db, "users"));
+      const validUserIds = [];
+      usersSnap.docs.forEach(docSnap => {
+        if (validEmails.includes(docSnap.data().email)) {
+          validUserIds.push(docSnap.id);
+        }
+      });
+      
+      // 2. Cleanup orphaned inventory
+      const invSnap = await getDocs(collection(db, "inventory"));
+      for (const invDoc of invSnap.docs) {
+        if (!validUserIds.includes(invDoc.data().farmer_id)) {
+          await deleteDoc(doc(db, "inventory", invDoc.id));
+        }
+      }
+      
+      // 3. Cleanup orphaned market listings
+      const mktSnap = await getDocs(collection(db, "market_listings"));
+      for (const mktDoc of mktSnap.docs) {
+        if (!validUserIds.includes(mktDoc.data().farmer_id)) {
+          await deleteDoc(doc(db, "market_listings", mktDoc.id));
+        }
+      }
+
+      // 4. Cleanup orphaned orders
+      const ordersSnap = await getDocs(collection(db, "orders"));
+      for (const orderDoc of ordersSnap.docs) {
+        const data = orderDoc.data();
+        if (!validUserIds.includes(data.customer_id) || !validUserIds.includes(data.seller_id)) {
+          await deleteDoc(doc(db, "orders", orderDoc.id));
+        }
+      }
+      
+      alert("Orphaned data wiped successfully!");
+    } catch (error) {
+      console.error("Failed to wipe orphaned data:", error);
+      alert("Failed to wipe orphaned data.");
+    } finally {
+      setIsWipingData(false);
+    }
   };
 
   const handleConfirmLogout = async () => {
@@ -452,22 +604,54 @@ export default function SettingsScreen() {
         </View>
       )}
 
-      {/* Admin Panel Link - Only for Admin */}
+      {/* Global Admin Filters */}
       {isAdmin && (
         <View style={styles.section}>
-          <Pressable style={({ pressed }) => [styles.adminCardWrap, pressed && styles.pressed]}>
-            <LinearGradient
-              colors={themeColors.cardGradients.default}
-              style={[styles.adminCard, { borderColor: themeColors.warning + '50' }]}
-            >
-              <Text style={styles.adminIcon}>🛡️</Text>
-              <View style={styles.adminInfo}>
-                <Text style={styles.adminTitle}>Admin Panel</Text>
-                <Text style={styles.adminDesc}>Manage users, orders, and settings</Text>
-              </View>
-              <Text style={styles.adminArrow}>→</Text>
-            </LinearGradient>
-          </Pressable>
+          <Text style={styles.sectionTitle}>Global Data Filters</Text>
+          <Text style={styles.sectionDesc}>Filter data across all tabs by a specific user.</Text>
+          <LinearGradient colors={themeColors.cardGradients.default} style={styles.card}>
+            
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Farmer Filter</Text>
+              <Pressable 
+                style={styles.adminFilterBtn}
+                onPress={() => setShowAdminFarmerModal(true)}
+              >
+                <Text style={styles.adminFilterBtnText}>
+                  {adminSelectedFarmerId ? (farmersList.find(f => f.id === adminSelectedFarmerId)?.farm_name || farmersList.find(f => f.id === adminSelectedFarmerId)?.name || 'Unknown') + ' (' + (farmersList.find(f => f.id === adminSelectedFarmerId)?.email || 'No email') + ')' : 'All Farmers'}
+                </Text>
+                <Text style={styles.dropdownIcon}>▼</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Customer Filter</Text>
+              <Pressable 
+                style={styles.adminFilterBtn}
+                onPress={() => setShowAdminCustomerModal(true)}
+              >
+                <Text style={styles.adminFilterBtnText}>
+                  {adminSelectedCustomerId ? (customersList.find(c => c.id === adminSelectedCustomerId)?.name || 'Unknown') + ' (' + (customersList.find(c => c.id === adminSelectedCustomerId)?.email || 'No email') + ')' : 'All Customers'}
+                </Text>
+                <Text style={styles.dropdownIcon}>▼</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <Pressable 
+                style={[styles.adminFilterBtn, { backgroundColor: themeColors.danger + '20', width: '100%' }]}
+                onPress={handleWipeOrphanedData}
+                disabled={isWipingData}
+              >
+                <Text style={[styles.adminFilterBtnText, { color: themeColors.danger, textAlign: 'center' }]}>
+                  {isWipingData ? 'Wiping Data...' : '⚠️ Wipe All Orphaned Data'}
+                </Text>
+              </Pressable>
+            </View>
+          </LinearGradient>
         </View>
       )}
 
@@ -493,6 +677,15 @@ export default function SettingsScreen() {
           style={[styles.logoutBtn, { borderColor: themeColors.danger + '50' }]}
         >
           <Text style={styles.logoutBtnText}>Sign Out</Text>
+        </LinearGradient>
+      </Pressable>
+
+      <Pressable style={({ pressed }) => [styles.logoutBtnWrap, pressed && styles.pressed, { marginTop: spacing.md }]} onPress={() => setShowDeleteAccountModal(true)}>
+        <LinearGradient
+          colors={themeColors.cardGradients.default}
+          style={[styles.logoutBtn, { borderColor: themeColors.danger + '80', backgroundColor: themeColors.danger + '10' }]}
+        >
+          <Text style={[styles.logoutBtnText, { color: themeColors.danger }]}>Delete My Account</Text>
         </LinearGradient>
       </Pressable>
 
@@ -524,6 +717,41 @@ export default function SettingsScreen() {
                   <Text style={styles.modalBtnConfirmText}>Signing out...</Text>
                 ) : (
                   <Text style={styles.modalBtnConfirmText}>Sign Out</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={showDeleteAccountModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteAccountModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={[styles.modalTitle, { color: themeColors.danger }]}>Delete Account</Text>
+            <Text style={styles.modalMessage}>Are you completely sure you want to permanently delete your account and all associated data? This action cannot be undone.</Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={({ pressed }) => [styles.modalBtn, styles.modalBtnCancel, pressed && styles.pressed]}
+                onPress={() => setShowDeleteAccountModal(false)}
+                disabled={isDeletingAccount}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.modalBtn, styles.modalBtnConfirm, pressed && styles.pressed]}
+                onPress={handleDeleteAccount}
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.modalBtnConfirmText}>Delete</Text>
                 )}
               </Pressable>
             </View>
@@ -738,6 +966,143 @@ export default function SettingsScreen() {
       </Modal>
 
       <Text style={styles.version}>HyGrow v1.0.0</Text>
+
+      {/* Admin Farmer Modal */}
+      <Modal
+        visible={showAdminFarmerModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAdminFarmerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Select Farmer Filter</Text>
+              <Pressable onPress={() => setShowAdminFarmerModal(false)}>
+                <Text style={styles.modalCloseText}>Done</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              <Pressable
+                style={[styles.modalItem, !adminSelectedFarmerId && styles.modalItemActive]}
+                onPress={() => {
+                  setAdminSelectedFarmerId(null);
+                  setShowAdminFarmerModal(false);
+                }}
+              >
+                <Text style={[styles.modalItemText, !adminSelectedFarmerId && styles.modalItemTextActive]}>All Farmers</Text>
+              </Pressable>
+              {farmersList.map(farmer => (
+                <View key={farmer.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Pressable
+                    style={[styles.modalItem, { flex: 1 }, adminSelectedFarmerId === farmer.id && styles.modalItemActive]}
+                    onPress={() => {
+                      setAdminSelectedFarmerId(farmer.id);
+                      setShowAdminFarmerModal(false);
+                    }}
+                  >
+                    <Text style={[styles.modalItemText, adminSelectedFarmerId === farmer.id && styles.modalItemTextActive]}>
+                      {farmer.farm_name || farmer.name} ({farmer.email || 'No email'})
+                    </Text>
+                  </Pressable>
+                  <Pressable 
+                    style={{ padding: spacing.md }}
+                    onPress={() => setUserToDelete(farmer)}
+                  >
+                    <Text style={{ fontSize: 18 }}>🗑️</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Admin Customer Modal */}
+      <Modal
+        visible={showAdminCustomerModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAdminCustomerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Select Customer Filter</Text>
+              <Pressable onPress={() => setShowAdminCustomerModal(false)}>
+                <Text style={styles.modalCloseText}>Done</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              <Pressable
+                style={[styles.modalItem, !adminSelectedCustomerId && styles.modalItemActive]}
+                onPress={() => {
+                  setAdminSelectedCustomerId(null);
+                  setShowAdminCustomerModal(false);
+                }}
+              >
+                <Text style={[styles.modalItemText, !adminSelectedCustomerId && styles.modalItemTextActive]}>All Customers</Text>
+              </Pressable>
+              {customersList.map(customer => (
+                <View key={customer.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Pressable
+                    style={[styles.modalItem, { flex: 1 }, adminSelectedCustomerId === customer.id && styles.modalItemActive]}
+                    onPress={() => {
+                      setAdminSelectedCustomerId(customer.id);
+                      setShowAdminCustomerModal(false);
+                    }}
+                  >
+                    <Text style={[styles.modalItemText, adminSelectedCustomerId === customer.id && styles.modalItemTextActive]}>
+                      {customer.name} ({customer.email || 'No email'})
+                    </Text>
+                  </Pressable>
+                  <Pressable 
+                    style={{ padding: spacing.md }}
+                    onPress={() => setUserToDelete(customer)}
+                  >
+                    <Text style={{ fontSize: 18 }}>🗑️</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Other User Modal */}
+      <Modal
+        visible={!!userToDelete}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUserToDelete(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={[styles.modalTitle, { color: themeColors.danger }]}>Delete User</Text>
+            <Text style={styles.modalMessage}>Are you sure you want to permanently delete data for {userToDelete?.name}? (This only deletes app data. Auth credentials must be deleted from the Firebase Console)</Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={({ pressed }) => [styles.modalBtn, styles.modalBtnCancel, pressed && styles.pressed]}
+                onPress={() => setUserToDelete(null)}
+                disabled={isDeletingOther}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.modalBtn, styles.modalBtnConfirm, pressed && styles.pressed]}
+                onPress={handleDeleteOtherUser}
+                disabled={isDeletingOther}
+              >
+                {isDeletingOther ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.modalBtnConfirmText}>Delete User</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -973,8 +1338,54 @@ const createStyles = (theme) => StyleSheet.create({
   modalMessage: {
     ...typography.body,
     color: theme.textSecondary,
-    textAlign: 'center',
     marginBottom: spacing.xl,
+    textAlign: 'center',
+  },
+  adminFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.surfaceLight,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minWidth: 150,
+  },
+  adminFilterBtnText: {
+    ...typography.bodySmall,
+    color: theme.text,
+  },
+  dropdownIcon: {
+    color: theme.textSecondary,
+    fontSize: 10,
+    marginLeft: spacing.sm,
+  },
+  modalScroll: {
+    maxHeight: 300,
+    marginTop: spacing.md,
+  },
+  modalItem: {
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.xs,
+  },
+  modalItemActive: {
+    backgroundColor: theme.primary + '15',
+  },
+  modalItemText: {
+    ...typography.body,
+    color: theme.text,
+  },
+  modalItemTextActive: {
+    color: theme.primary,
+    fontWeight: '700',
+  },
+  modalCloseText: {
+    ...typography.body,
+    color: theme.primary,
+    fontWeight: '600',
   },
   modalActions: {
     flexDirection: 'row',
@@ -1073,7 +1484,7 @@ const createStyles = (theme) => StyleSheet.create({
   grantAllBtnText: {
     ...typography.body,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#ffffff',
   },
   editProfileModal: {
     maxHeight: '85%',

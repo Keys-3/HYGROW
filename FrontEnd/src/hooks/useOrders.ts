@@ -46,7 +46,7 @@ export interface Order {
   id: string;
   customer_id: string;
   seller_id?: string;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'processing' | 'out_for_delivery' | 'delivered' | 'cancelled';
   total_amount: number;
   shipping_address?: string;
   shipping_city?: string;
@@ -399,7 +399,8 @@ export default function useOrders() {
   const updateOrderStatus = useCallback(async (
     orderId: string,
     status: Order['status'],
-    notes?: string
+    notes?: string,
+    location?: string
   ) => {
     try {
       // If cancelling, restore stock to listings first
@@ -458,7 +459,8 @@ export default function useOrders() {
       await addDoc(collection(db, ORDER_TRACKING_COLLECTION), {
         order_id: orderId,
         status,
-        notes: notes || `Order marked as ${status}`,
+        notes: notes || `Order marked as ${status.replace(/_/g, ' ')}`,
+        location: location || null,
         updated_by: user?.id,
         created_at: serverTimestamp(),
       });

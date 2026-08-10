@@ -75,7 +75,7 @@ function useInventory() {
 
   // Fetch farmer's inventory with real-time updates
   const fetchInventory = useCallback(() => {
-    if (!user || !isAuthenticated || user.role !== 'farmer') {
+    if (!user || !isAuthenticated || (user.role !== 'farmer' && user.role !== 'admin')) {
       setInventory([]);
       setLoading(false);
       return () => {};
@@ -84,11 +84,19 @@ function useInventory() {
     setLoading(true);
     setError(null);
 
-    const inventoryQuery = query(
-      collection(db, INVENTORY_COLLECTION),
-      where('farmer_id', '==', user.id),
-      orderBy('created_at', 'desc')
-    );
+    let inventoryQuery;
+    if (user.role === 'admin') {
+      inventoryQuery = query(
+        collection(db, INVENTORY_COLLECTION),
+        orderBy('created_at', 'desc')
+      );
+    } else {
+      inventoryQuery = query(
+        collection(db, INVENTORY_COLLECTION),
+        where('farmer_id', '==', user.id),
+        orderBy('created_at', 'desc')
+      );
+    }
 
     const unsubscribe = onSnapshot(
       inventoryQuery,
