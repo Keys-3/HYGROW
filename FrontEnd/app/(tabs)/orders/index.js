@@ -3,20 +3,22 @@ import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl, ActivityIn
 import { useRouter } from 'expo-router';
 import useOrders from '../../../src/hooks/useOrders';
 import useAppStore from '../../../src/store/useAppStore';
-import { colors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
+import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
 import { formatDate, formatTime } from '../../../src/utils/helpers';
 
-const STATUS_CONFIG = {
+const getStatusConfig = (colors) => ({
   pending: { color: colors.warning, label: 'Pending', icon: 'Pending' },
   confirmed: { color: colors.info, label: 'Confirmed', icon: 'Confirmed' },
   processing: { color: colors.primary, label: 'Processing', icon: 'Processing' },
   shipped: { color: colors.info, label: 'Shipped', icon: 'Shipped' },
   delivered: { color: colors.success, label: 'Delivered', icon: 'Delivered' },
   cancelled: { color: colors.danger, label: 'Cancelled', icon: 'Cancelled' },
-};
+});
 
 function OrderCard({ order, onPress }) {
-  const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
+  const statusConfig = getStatusConfig(themeColors)[order.status] || getStatusConfig(themeColors).pending;
   const itemCount = order.items?.length || 0;
   const totalItems = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
@@ -62,6 +64,8 @@ function OrderCard({ order, onPress }) {
 
 export default function OrdersScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   const { orders, loading, error, fetchOrders } = useOrders();
   const user = useAppStore((state) => state.user);
 
@@ -82,7 +86,7 @@ export default function OrdersScreen() {
   if (loading && orders.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={themeColors.primary} />
         <Text style={styles.loadingText}>Loading orders...</Text>
       </View>
     );
@@ -116,8 +120,8 @@ export default function OrdersScreen() {
           <RefreshControl
             refreshing={loading}
             onRefresh={fetchOrders}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor={themeColors.primary}
+            colors={[themeColors.primary]}
           />
         }
         ListEmptyComponent={
@@ -135,7 +139,7 @@ export default function OrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -147,6 +151,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
+    color: colors.text,
   },
   subtitle: {
     ...typography.body,
@@ -183,9 +188,11 @@ const styles = StyleSheet.create({
   orderId: {
     ...typography.h3,
     marginBottom: 4,
+    color: colors.text,
   },
   orderDate: {
     ...typography.caption,
+    color: colors.textSecondary,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -214,6 +221,7 @@ const styles = StyleSheet.create({
   itemsLabel: {
     ...typography.bodySmall,
     fontWeight: '600',
+    color: colors.text,
   },
   itemsCount: {
     ...typography.caption,
@@ -230,6 +238,7 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     flex: 1,
     marginRight: 8,
+    color: colors.text,
   },
   itemQty: {
     ...typography.caption,
@@ -250,6 +259,7 @@ const styles = StyleSheet.create({
   totalLabel: {
     ...typography.body,
     fontWeight: '600',
+    color: colors.text,
   },
   totalAmount: {
     ...typography.h3,
@@ -298,6 +308,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     ...typography.h2,
     marginBottom: spacing.sm,
+    color: colors.text,
   },
   emptySubtitle: {
     ...typography.body,

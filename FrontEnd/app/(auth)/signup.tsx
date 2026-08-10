@@ -4,7 +4,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import useAuth from '../../src/hooks/useAuth';
 import type { UserRole } from '../../src/store/slices/authSlice';
 import useAppStore from '../../src/store/useAppStore';
-import { borderRadius, colors, spacing, typography } from '../../src/theme/theme';
+import { borderRadius, useThemeColors, spacing, typography } from '../../src/theme/theme';
 
 const ROLES: { key: UserRole; label: string; icon: string; description: string }[] = [
   { key: 'farmer', label: 'Farmer', icon: ' 🚜', description: 'Manage your hydroponic farm' },
@@ -14,6 +14,8 @@ const ROLES: { key: UserRole; label: string; icon: string; description: string }
 
 export default function SignupScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   const { signup, authInitialized } = useAuth();
   const user = useAppStore((state) => state.user);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
@@ -48,7 +50,7 @@ export default function SignupScreen() {
   if (!authInitialized) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={themeColors.primary} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -107,7 +109,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="Green Valley Farm"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={farmName}
               onChangeText={setFarmName}
               editable={!loading}
@@ -118,7 +120,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="Pune, Maharashtra"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={farmLocation}
               onChangeText={setFarmLocation}
               editable={!loading}
@@ -136,7 +138,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="123 Main Street"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={address}
               onChangeText={setAddress}
               editable={!loading}
@@ -148,7 +150,7 @@ export default function SignupScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Mumbai"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={themeColors.textMuted}
                 value={city}
                 onChangeText={setCity}
                 editable={!loading}
@@ -159,7 +161,7 @@ export default function SignupScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="MH"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={themeColors.textMuted}
                 value={state}
                 onChangeText={setState}
                 maxLength={2}
@@ -173,7 +175,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="400001"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={pincode}
               onChangeText={setPincode}
               keyboardType="numeric"
@@ -186,7 +188,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="+91 9876543210"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -246,7 +248,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="John Doe"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={name}
               onChangeText={setName}
               editable={!loading}
@@ -258,7 +260,7 @@ export default function SignupScreen() {
             <TextInput
               style={styles.input}
               placeholder="you@example.com"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -274,7 +276,7 @@ export default function SignupScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Min 6 chars"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={themeColors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -286,7 +288,7 @@ export default function SignupScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Repeat"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={themeColors.textMuted}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
@@ -304,7 +306,7 @@ export default function SignupScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={colors.background} />
+              <ActivityIndicator color={themeColors.background} />
             ) : (
               <Text style={styles.buttonText}>Create Account as {ROLES.find(r => r.key === role)?.label}</Text>
             )}
@@ -319,7 +321,7 @@ export default function SignupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,
@@ -336,16 +338,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
+    flexGrow: 1,
     padding: spacing.lg,
     paddingTop: 60,
     paddingBottom: 40,
   },
   header: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
   title: {
     ...typography.h1,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
+    color: colors.text,
   },
   subtitle: {
     ...typography.body,
@@ -357,6 +361,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    marginBottom: spacing.md,
+    marginTop: spacing.md,
+    color: colors.text,
   },
   errorContainer: {
     backgroundColor: colors.danger + '20',
@@ -372,6 +382,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...typography.label,
     marginBottom: spacing.sm,
+    color: colors.text,
   },
   roleContainer: {
     marginBottom: spacing.lg,
@@ -435,6 +446,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     ...typography.label,
     marginBottom: spacing.xs,
+    color: colors.text,
   },
   input: {
     backgroundColor: colors.surfaceLight,
@@ -469,6 +481,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     ...typography.bodySmall,
+    color: colors.textSecondary,
   },
   linkTextBold: {
     color: colors.primary,

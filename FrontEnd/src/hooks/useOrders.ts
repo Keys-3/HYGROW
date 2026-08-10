@@ -12,7 +12,8 @@ import {
   serverTimestamp,
   onSnapshot,
   Timestamp,
-  Unsubscribe
+  Unsubscribe,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../../firebase';
 import useAppStore from '../store/useAppStore';
@@ -346,6 +347,20 @@ export default function useOrders() {
               stock: newStock,
               updated_at: serverTimestamp(),
             });
+
+            if (listingData.inventory_id) {
+              const inventoryRef = doc(db, 'inventory', listingData.inventory_id);
+              const inventoryDoc = await getDoc(inventoryRef);
+              if (inventoryDoc.exists()) {
+                const invData = inventoryDoc.data();
+                const invStock = invData.quantity || 0;
+                const newInvStock = Math.max(0, invStock - item.quantity);
+                await updateDoc(inventoryRef, {
+                  quantity: newInvStock,
+                  updated_at: serverTimestamp(),
+                });
+              }
+            }
           }
         }
       });
@@ -415,6 +430,21 @@ export default function useOrders() {
                 stock: restoredStock,
                 updated_at: serverTimestamp(),
               });
+
+              // ALSO RESTORE INVENTORY STOCK!
+              if (listingData.inventory_id) {
+                const inventoryRef = doc(db, 'inventory', listingData.inventory_id);
+                const inventoryDoc = await getDoc(inventoryRef);
+                if (inventoryDoc.exists()) {
+                  const invData = inventoryDoc.data();
+                  const currentInvStock = invData.quantity || 0;
+                  const restoredInvStock = currentInvStock + itemData.quantity;
+                  await updateDoc(inventoryRef, {
+                    quantity: restoredInvStock,
+                    updated_at: serverTimestamp(),
+                  });
+                }
+              }
             }
           }
         }
@@ -443,6 +473,27 @@ export default function useOrders() {
     await updateOrderStatus(orderId, 'cancelled', 'Order cancelled by user');
   }, [updateOrderStatus]);
 
+  const deleteOrder = useCallback(async (orderId: string) => {
+    try {
+      // Delete order items
+      const itemsQuery = query(collection(db, ORDER_ITEMS_COLLECTION), where('order_id', '==', orderId));
+      const itemsSnapshot = await getDocs(itemsQuery);
+      const deleteItemsPromises = itemsSnapshot.docs.map(docSnapshot => deleteDoc(doc(db, ORDER_ITEMS_COLLECTION, docSnapshot.id)));
+      await Promise.all(deleteItemsPromises);
+
+      // Delete order tracking
+      const trackingQuery = query(collection(db, ORDER_TRACKING_COLLECTION), where('order_id', '==', orderId));
+      const trackingSnapshot = await getDocs(trackingQuery);
+      const deleteTrackingPromises = trackingSnapshot.docs.map(docSnapshot => deleteDoc(doc(db, ORDER_TRACKING_COLLECTION, docSnapshot.id)));
+      await Promise.all(deleteTrackingPromises);
+
+      // Delete main order document
+      await deleteDoc(doc(db, ORDERS_COLLECTION, orderId));
+    } catch (err: any) {
+      throw new Error(err.message || 'Failed to delete order');
+    }
+  }, []);
+
   return {
     orders,
     loading,
@@ -451,5 +502,6 @@ export default function useOrders() {
     createOrder,
     updateOrderStatus,
     cancelOrder,
+    deleteOrder,
   };
 }

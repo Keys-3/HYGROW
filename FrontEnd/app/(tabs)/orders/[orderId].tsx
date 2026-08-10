@@ -1,37 +1,41 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import useOrders from '../../../src/hooks/useOrders';
 import useAppStore from '../../../src/store/useAppStore';
-import { colors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
+import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
 import { formatDate, formatTime } from '../../../src/utils/helpers';
+import CustomAlert from '../../../src/components/CustomAlert';
 
 type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
-const STATUS_CONFIG: Record<OrderStatus, { color: string; label: string; description: string }> = {
+const getStatusConfig = (colors: any): Record<OrderStatus, { color: string; label: string; description: string }> => ({
   pending: { color: colors.warning, label: 'Pending', description: 'Order placed, awaiting confirmation' },
   confirmed: { color: colors.info, label: 'Confirmed', description: 'Order confirmed by seller' },
   processing: { color: colors.primary, label: 'Processing', description: 'Order is being prepared' },
   shipped: { color: colors.info, label: 'Shipped', description: 'Order is on the way' },
   delivered: { color: colors.success, label: 'Delivered', description: 'Order delivered successfully' },
   cancelled: { color: colors.danger, label: 'Cancelled', description: 'Order has been cancelled' },
-};
+});
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 
 export default function OrderDetailScreen() {
   const { orderId } = useLocalSearchParams();
   const router = useRouter();
-  const { orders, loading: ordersLoading, cancelOrder, updateOrderStatus } = useOrders();
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
+  const { orders, loading: ordersLoading, cancelOrder, updateOrderStatus, deleteOrder } = useOrders();
   const user = useAppStore((state) => state.user);
   const [updating, setUpdating] = useState(false);
+  const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [] as any });
 
   const order = orders.find(o => o.id === orderId);
 
   if (ordersLoading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 100 }} />
+        <ActivityIndicator size="large" color={themeColors.primary} style={{ marginTop: 100 }} />
       </View>
     );
   }
@@ -51,64 +55,122 @@ export default function OrderDetailScreen() {
     );
   }
 
-  const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+  const statusConfig = getStatusConfig(themeColors)[order.status] || getStatusConfig(themeColors).pending;
   const currentStepIndex = STATUS_FLOW.indexOf(order.status);
   const isCustomer = user?.role === 'customer';
   const isSeller = order.items?.some(item => item.seller_id === user?.id);
   const isAdmin = user?.role === 'admin';
-  const canCancel = isCustomer && order.status === 'pending';
+  const canCancel = (isCustomer || isSeller) && (order.status === 'pending' || order.status === 'confirmed');
   const canUpdateStatus = (isSeller || isAdmin) && order.status !== 'delivered' && order.status !== 'cancelled';
+  const canDelete = (order.status === 'delivered' || order.status === 'cancelled') && (isCustomer || isSeller || isAdmin);
 
   const handleCancel = () => {
-    Alert.alert(
-      'Cancel Order',
-      'Are you sure you want to cancel this order? This action cannot be undone.',
-      [
-        { text: 'No, Keep Order', style: 'cancel' },
+    setCustomAlert({
+      visible: true,
+      title: 'Cancel Order',
+      message: 'Are you sure you want to cancel this order? This action cannot be undone.',
+      buttons: [
+        { text: 'No, Keep Order', style: 'cancel', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) },
         {
           text: 'Yes, Cancel',
           style: 'destructive',
           onPress: async () => {
+            setCustomAlert((prev: any) => ({ ...prev, visible: false }));
             try {
               setUpdating(true);
               await cancelOrder(order.id);
-              Alert.alert('Success', 'Order has been cancelled');
+              setCustomAlert({
+                visible: true,
+                title: 'Success',
+                message: 'Order has been cancelled',
+                buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
+              });
             } catch (err: any) {
-              Alert.alert('Error', err.message);
+              setCustomAlert({
+                visible: true,
+                title: 'Error',
+                message: err.message,
+                buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
+              });
             } finally {
               setUpdating(false);
             }
-          },
-        },
+          }
+        }
       ]
-    );
+    });
   };
 
   const handleUpdateStatus = () => {
     const nextStatus = STATUS_FLOW[currentStepIndex + 1];
     if (!nextStatus) return;
 
-    Alert.alert(
-      'Update Status',
-      `Mark order as ${STATUS_CONFIG[nextStatus]?.label}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
+    setCustomAlert({
+      visible: true,
+      title: 'Update Status',
+      message: `Mark order as ${getStatusConfig(themeColors)[nextStatus]?.label}?`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) },
         {
           text: 'Update',
+          style: 'default',
           onPress: async () => {
+            setCustomAlert((prev: any) => ({ ...prev, visible: false }));
             try {
               setUpdating(true);
               await updateOrderStatus(order.id, nextStatus);
-              Alert.alert('Success', `Order marked as ${STATUS_CONFIG[nextStatus]?.label}`);
+              setCustomAlert({
+                visible: true,
+                title: 'Success',
+                message: `Order marked as ${getStatusConfig(themeColors)[nextStatus]?.label}`,
+                buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
+              });
             } catch (err: any) {
-              Alert.alert('Error', err.message);
+              setCustomAlert({
+                visible: true,
+                title: 'Error',
+                message: err.message,
+                buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
+              });
             } finally {
               setUpdating(false);
             }
-          },
-        },
+          }
+        }
       ]
-    );
+    });
+  };
+
+  const handleDelete = () => {
+    setCustomAlert({
+      visible: true,
+      title: 'Delete Order History',
+      message: 'Are you sure you want to permanently delete this order history? This action cannot be undone.',
+      buttons: [
+        { text: 'No, Keep Order', style: 'cancel', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) },
+        {
+          text: 'Yes, Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setCustomAlert((prev: any) => ({ ...prev, visible: false }));
+            try {
+              setUpdating(true);
+              await deleteOrder(order.id);
+              router.back();
+            } catch (err: any) {
+              setCustomAlert({
+                visible: true,
+                title: 'Error',
+                message: err.message,
+                buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
+              });
+            } finally {
+              setUpdating(false);
+            }
+          }
+        }
+      ]
+    });
   };
 
   return (
@@ -136,7 +198,7 @@ export default function OrderDetailScreen() {
         {/* Progress Steps */}
         <View style={styles.progressSteps}>
           {STATUS_FLOW.map((status, index) => {
-            const config = STATUS_CONFIG[status];
+            const config = getStatusConfig(themeColors)[status];
             const isCompleted = index <= currentStepIndex;
             const isCurrent = index === currentStepIndex;
 
@@ -191,7 +253,7 @@ export default function OrderDetailScreen() {
         <View style={styles.trackingCard}>
           <Text style={styles.sectionTitle}>Tracking History</Text>
           {order.tracking.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((track, i) => {
-            const trackConfig = STATUS_CONFIG[track.status as OrderStatus] || STATUS_CONFIG.pending;
+            const trackConfig = getStatusConfig(themeColors)[track.status as OrderStatus] || getStatusConfig(themeColors).pending;
             return (
               <View key={i} style={styles.trackItem}>
                 <View style={[styles.trackDot, { backgroundColor: trackConfig.color }]} />
@@ -209,7 +271,7 @@ export default function OrderDetailScreen() {
       {/* Actions */}
       {canCancel && (
         <Pressable style={[styles.actionBtn, styles.cancelBtn]} onPress={handleCancel} disabled={updating}>
-          {updating ? <ActivityIndicator color={colors.danger} /> : (
+          {updating ? <ActivityIndicator color={themeColors.danger} /> : (
             <Text style={styles.cancelBtnText}>Cancel Order</Text>
           )}
         </Pressable>
@@ -217,18 +279,34 @@ export default function OrderDetailScreen() {
 
       {canUpdateStatus && (
         <Pressable style={[styles.actionBtn, styles.updateBtn]} onPress={handleUpdateStatus} disabled={updating}>
-          {updating ? <ActivityIndicator color={colors.background} /> : (
+          {updating ? <ActivityIndicator color={themeColors.background} /> : (
             <Text style={styles.updateBtnText}>Update Status</Text>
           )}
         </Pressable>
       )}
+
+      {canDelete && (
+        <Pressable style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDelete} disabled={updating}>
+          {updating ? <ActivityIndicator color={themeColors.danger} /> : (
+            <Text style={styles.deleteBtnText}>Delete Order History</Text>
+          )}
+        </Pressable>
+      )}
+
+      <CustomAlert 
+        visible={customAlert.visible}
+        title={customAlert.title}
+        message={customAlert.message}
+        buttons={customAlert.buttons}
+        onDismiss={() => setCustomAlert((prev: any) => ({ ...prev, visible: false }))}
+      />
 
       <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -251,6 +329,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
+    color: colors.text,
   },
   date: {
     ...typography.body,
@@ -260,6 +339,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.h3,
     marginBottom: spacing.md,
+    color: colors.text,
   },
   progressCard: {
     backgroundColor: colors.surface,
@@ -321,6 +401,7 @@ const styles = StyleSheet.create({
   stepLabel: {
     ...typography.caption,
     textAlign: 'center',
+    color: colors.textSecondary,
   },
   stepLabelActive: {
     color: colors.primary,
@@ -348,13 +429,16 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '500',
     marginBottom: 2,
+    color: colors.text,
   },
   itemQty: {
     ...typography.caption,
+    color: colors.textSecondary,
   },
   itemPrice: {
     ...typography.body,
     fontWeight: '600',
+    color: colors.text,
   },
   divider: {
     height: 1,
@@ -369,6 +453,7 @@ const styles = StyleSheet.create({
   totalLabel: {
     ...typography.body,
     fontWeight: '600',
+    color: colors.text,
   },
   totalAmount: {
     ...typography.h2,
@@ -413,6 +498,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
     marginBottom: 2,
+    color: colors.text,
   },
   trackNotes: {
     ...typography.bodySmall,
@@ -421,6 +507,7 @@ const styles = StyleSheet.create({
   },
   trackTime: {
     ...typography.caption,
+    color: colors.textSecondary,
   },
   actionBtn: {
     padding: spacing.md,
@@ -446,6 +533,16 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontWeight: '600',
   },
+  deleteBtn: {
+    backgroundColor: colors.danger + '10',
+    borderWidth: 1,
+    borderColor: colors.danger + '40',
+  },
+  deleteBtnText: {
+    ...typography.body,
+    color: colors.danger,
+    fontWeight: '600',
+  },
   errorContainer: {
     alignItems: 'center',
     padding: spacing.xxl,
@@ -457,6 +554,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     ...typography.h2,
     marginBottom: spacing.sm,
+    color: colors.text,
   },
   errorSubtitle: {
     ...typography.body,

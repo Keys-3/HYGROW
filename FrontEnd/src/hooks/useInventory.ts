@@ -323,6 +323,45 @@ function useInventory() {
       ...updates,
       updated_at: serverTimestamp(),
     });
+
+    // Sync updates to active market listings
+    if (updates.quantity !== undefined || updates.price_per_unit !== undefined || updates.name !== undefined || updates.category !== undefined || updates.unit !== undefined || updates.description !== undefined || updates.image_url !== undefined) {
+      try {
+        // Avoid composite index issues by querying by farmer_id and filtering in memory
+        const listingsQuery = query(
+          collection(db, MARKET_LISTINGS_COLLECTION),
+          where('farmer_id', '==', user.id)
+        );
+        const snapshot = await getDocs(listingsQuery);
+        
+        // Find the matching active listing (fallback to title if inventory_id is missing on older items)
+        const activeListings = snapshot.docs.filter((d) => {
+          const data = d.data();
+          return data.is_active === true && (data.inventory_id === itemId || data.title === updates.name);
+        });
+
+        const marketUpdates: any = {};
+        if (updates.quantity !== undefined) marketUpdates.stock = updates.quantity;
+        if (updates.price_per_unit !== undefined) marketUpdates.price = updates.price_per_unit;
+        if (updates.name !== undefined) marketUpdates.title = updates.name;
+        if (updates.category !== undefined) marketUpdates.category = updates.category;
+        if (updates.unit !== undefined) marketUpdates.unit = `per ${updates.unit}`;
+        if (updates.description !== undefined) marketUpdates.description = updates.description;
+        if (updates.image_url !== undefined) marketUpdates.image_url = updates.image_url;
+
+        if (Object.keys(marketUpdates).length > 0) {
+          const updatePromises = activeListings.map((listingDoc) =>
+            updateDoc(doc(db, MARKET_LISTINGS_COLLECTION, listingDoc.id), {
+              ...marketUpdates,
+              updated_at: serverTimestamp(),
+            })
+          );
+          await Promise.all(updatePromises);
+        }
+      } catch (err) {
+        console.warn('Could not sync updates to market listings:', err);
+      }
+    }
   }, [user]);
 
   // Delete inventory item and associated market listings
@@ -430,25 +469,7 @@ function useInventory() {
     });
   }, []);
 
-  // Subscribe to inventory updates
-  useEffect(() => {
-    if (user?.role === 'farmer') {
-      const unsubscribe = fetchInventory();
-      return unsubscribe;
-    } else {
-      setLoading(false);
-    }
-  }, [fetchInventory, user]);
-
-  // Subscribe to market listings updates (for customers)
-  useEffect(() => {
-    if (user?.role === 'customer') {
-      const unsubscribe = subscribeToMarketListings();
-      return unsubscribe;
-    } else {
-      setLoading(false);
-    }
-  }, [subscribeToMarketListings, user]);
+  // (Subscriptions are now managed directly by UI components)
 
   return {
     inventory,

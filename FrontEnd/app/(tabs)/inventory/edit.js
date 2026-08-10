@@ -31,6 +31,7 @@ export default function EditInventoryScreen() {
   const { inventoryId } = useLocalSearchParams();
   const {
     inventory,
+    fetchInventory,
     addInventoryItem,
     updateInventoryItem,
     deleteInventoryItem,
@@ -50,6 +51,15 @@ export default function EditInventoryScreen() {
 
   const isEditing = !!inventoryId;
   const editingItem = inventory.find((item) => item.id === inventoryId);
+
+  useEffect(() => {
+    if (user?.role === 'farmer') {
+      const unsubscribe = fetchInventory();
+      return () => {
+        if (typeof unsubscribe === 'function') unsubscribe();
+      };
+    }
+  }, [fetchInventory, user]);
 
   useEffect(() => {
     if (editingItem) {

@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { colors, spacing, borderRadius, typography } from '../../../src/theme/theme';
-import { formatDate } from '../../../src/utils/helpers';
+import { useThemeColors, spacing, borderRadius, typography } from '../../../src/theme/theme';
+import { formatDate, getDefaultImage } from '../../../src/utils/helpers';
 import useOrders from '../../../src/hooks/useOrders';
 import useAppStore from '../../../src/store/useAppStore';
+import CustomAlert from '../../../src/components/CustomAlert';
 
 export default function ListingDetailScreen() {
   const { listingId } = useLocalSearchParams();
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,6 +28,7 @@ export default function ListingDetailScreen() {
   const [stateVal, setStateVal] = useState('');
   const [pincode, setPincode] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   useEffect(() => {
     if (user) {
@@ -86,7 +90,7 @@ export default function ListingDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={themeColors.primary} />
         <Text style={styles.loadingText}>Loading listing...</Text>
       </View>
     );
@@ -105,24 +109,22 @@ export default function ListingDetailScreen() {
   }
 
   const handleContact = () => {
-    Alert.alert('Contact Seller', `Message sent to ${listing.seller.name}!`);
+    setCustomAlert({
+      visible: true,
+      title: 'Contact Seller',
+      message: `Message sent to ${listing.seller.name}!`,
+      buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
+    });
   };
 
   const handlePlaceOrder = async () => {
-    if (!address.trim()) {
-      Alert.alert('Error', 'Please enter a shipping address');
-      return;
-    }
-    if (!city.trim()) {
-      Alert.alert('Error', 'Please enter a city');
-      return;
-    }
-    if (!stateVal.trim()) {
-      Alert.alert('Error', 'Please enter a state');
-      return;
-    }
-    if (!pincode.trim()) {
-      Alert.alert('Error', 'Please enter a pincode');
+    if (!address.trim() || !city.trim() || !stateVal.trim() || !pincode.trim()) {
+      setCustomAlert({
+        visible: true,
+        title: 'Error',
+        message: 'Please fill in all shipping details.',
+        buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
+      });
       return;
     }
 
@@ -149,30 +151,33 @@ export default function ListingDetailScreen() {
       // Create order (stock is updated inside createOrder)
       const newOrder = await createOrder(orderData);
 
-      Alert.alert('Success', 'Your order has been placed successfully!', [
-        {
-          text: 'View Order',
-          onPress: () => {
-            setIsBuyModalVisible(false);
-            router.push(`/(tabs)/orders/${newOrder.id}`);
-          }
-        },
-        {
+      setCustomAlert({
+        visible: true,
+        title: 'Success',
+        message: 'Your order has been placed successfully!',
+        buttons: [{
           text: 'OK',
           onPress: () => {
+            setCustomAlert(prev => ({ ...prev, visible: false }));
             setIsBuyModalVisible(false);
+            router.push('/(tabs)/orders');
           }
-        }
-      ]);
+        }]
+      });
     } catch (err) {
       console.error('Order creation failed:', err);
-      Alert.alert('Error', err.message || 'Failed to place order. Please try again.');
+      setCustomAlert({
+        visible: true,
+        title: 'Error',
+        message: err.message || 'Failed to place order. Please try again.',
+        buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
+      });
     } finally {
       setPlacingOrder(false);
     }
   };
 
-  const firstLetter = listing.title ? listing.title.charAt(0).toUpperCase() : '?';
+  const imageUrl = listing.imageUrl || listing.image_url || getDefaultImage(listing.category, listing.title);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -180,9 +185,7 @@ export default function ListingDetailScreen() {
         <Text style={styles.backText}>← Back</Text>
       </Pressable>
 
-      <View style={styles.imagePlaceholder}>
-        <Text style={styles.imageText}>{firstLetter}</Text>
-      </View>
+      <Image source={{ uri: imageUrl }} style={styles.image} />
 
       <View style={styles.header}>
         <View style={styles.badge}>
@@ -306,7 +309,7 @@ export default function ListingDetailScreen() {
                 >
                   <Text style={styles.qtyBtnText}>-</Text>
                 </Pressable>
-                <Text style={styles.qtyValue}>{buyQuantity}</Text>
+                <Text style={styles.qtyText}>{buyQuantity}</Text>
                 <Pressable 
                   style={styles.qtyBtn} 
                   onPress={() => setBuyQuantity(q => Math.min(listing.stock, q + 1))}
@@ -324,7 +327,7 @@ export default function ListingDetailScreen() {
               <TextInput
                 style={styles.textInput}
                 placeholder="Street address, apartment, sector..."
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={themeColors.textMuted}
                 value={address}
                 onChangeText={setAddress}
               />
@@ -335,7 +338,7 @@ export default function ListingDetailScreen() {
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g. New Delhi"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={themeColors.textMuted}
                 value={city}
                 onChangeText={setCity}
               />
@@ -347,7 +350,7 @@ export default function ListingDetailScreen() {
                 <TextInput
                   style={styles.textInput}
                   placeholder="e.g. Delhi"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={themeColors.textMuted}
                   value={stateVal}
                   onChangeText={setStateVal}
                 />
@@ -357,7 +360,7 @@ export default function ListingDetailScreen() {
                 <TextInput
                   style={styles.textInput}
                   placeholder="e.g. 110001"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={themeColors.textMuted}
                   value={pincode}
                   onChangeText={setPincode}
                   keyboardType="number-pad"
@@ -374,7 +377,7 @@ export default function ListingDetailScreen() {
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Delivery charges:</Text>
-                <Text style={[styles.summaryValue, { color: colors.success }]}>FREE</Text>
+                <Text style={[styles.summaryValue, { color: themeColors.success }]}>FREE</Text>
               </View>
               <View style={styles.divider} />
               <View style={styles.summaryRow}>
@@ -399,7 +402,7 @@ export default function ListingDetailScreen() {
                 disabled={placingOrder}
               >
                 {placingOrder ? (
-                  <ActivityIndicator color={colors.background} size="small" />
+                  <ActivityIndicator color={themeColors.background} size="small" />
                 ) : (
                   <Text style={styles.modalConfirmBtnText}>Place Order</Text>
                 )}
@@ -409,12 +412,20 @@ export default function ListingDetailScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      <CustomAlert 
+        visible={customAlert.visible}
+        title={customAlert.title}
+        message={customAlert.message}
+        buttons={customAlert.buttons}
+        onDismiss={() => setCustomAlert(prev => ({ ...prev, visible: false }))}
+      />
+
       <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,
@@ -470,18 +481,12 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
   },
-  imagePlaceholder: {
+  image: {
     height: 250,
-    backgroundColor: colors.surfaceLight,
+    width: '100%',
     borderRadius: borderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: spacing.lg,
-  },
-  imageText: {
-    fontSize: 80,
-    fontWeight: 'bold',
-    color: colors.primary + '40',
+    resizeMode: 'cover',
   },
   header: {
     marginBottom: spacing.lg,
@@ -503,6 +508,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h1,
     marginBottom: spacing.xs,
+    color: colors.text,
   },
   price: {
     ...typography.h2,
@@ -545,6 +551,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
     marginBottom: 2,
+    color: colors.text,
   },
   sellerLocation: {
     ...typography.caption,
@@ -564,8 +571,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   sectionTitle: {
-    ...typography.h3,
-    marginBottom: spacing.sm,
+    ...typography.h2,
+    marginBottom: spacing.md,
+    color: colors.text,
   },
   description: {
     ...typography.body,
@@ -583,10 +591,12 @@ const styles = StyleSheet.create({
   metaLabel: {
     ...typography.body,
     color: colors.textSecondary,
+    flex: 1,
   },
   metaValue: {
     ...typography.body,
     fontWeight: '600',
+    color: colors.text,
   },
   contactBtn: {
     backgroundColor: colors.primary,
@@ -653,7 +663,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.h2,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
+    color: colors.text,
   },
   modalItemDetails: {
     backgroundColor: colors.surface,
@@ -666,6 +677,7 @@ const styles = StyleSheet.create({
   modalItemTitle: {
     ...typography.h3,
     marginBottom: 4,
+    color: colors.text,
   },
   modalItemSub: {
     ...typography.bodySmall,
@@ -676,6 +688,7 @@ const styles = StyleSheet.create({
     ...typography.h3,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
+    color: colors.text,
   },
   qtyContainer: {
     flexDirection: 'row',
@@ -697,8 +710,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
   },
-  qtyValue: {
+  qtyText: {
     ...typography.h3,
+    color: colors.text,
     marginHorizontal: spacing.lg,
   },
   inputGroup: {
@@ -707,6 +721,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     ...typography.label,
     marginBottom: spacing.xs,
+    color: colors.text,
   },
   textInput: {
     backgroundColor: colors.surface,
@@ -733,6 +748,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '700',
     marginBottom: spacing.sm,
+    color: colors.text,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -746,10 +762,12 @@ const styles = StyleSheet.create({
   summaryValue: {
     ...typography.bodySmall,
     fontWeight: '600',
+    color: colors.text,
   },
   summaryTotalLabel: {
     ...typography.body,
     fontWeight: '700',
+    color: colors.text,
   },
   summaryTotalValue: {
     ...typography.h3,

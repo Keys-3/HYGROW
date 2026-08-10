@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -66,6 +66,15 @@ export default function InventoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const themeColors = useThemeColors();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+
+  useEffect(() => {
+    if (user?.role === 'farmer') {
+      const unsubscribe = fetchInventory();
+      return () => {
+        if (typeof unsubscribe === 'function') unsubscribe();
+      };
+    }
+  }, [fetchInventory, user]);
 
   const navigateToEdit = (itemId = null) => {
     if (itemId) {

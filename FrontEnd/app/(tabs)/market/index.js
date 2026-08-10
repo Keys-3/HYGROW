@@ -1,19 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, RefreshControl, ActivityIndicator, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, spacing, borderRadius, typography } from '../../../src/theme/theme';
+import { useThemeColors, spacing, borderRadius, typography } from '../../../src/theme/theme';
 import MarketListingCard from '../../../src/components/MarketListingCard';
 import useInventory from '../../../src/hooks/useInventory';
 
 export default function MarketScreen() {
   const router = useRouter();
-  const { listings, loading, error, fetchMarketListings } = useInventory();
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
+  const { listings, loading, error, subscribeToMarketListings, fetchMarketListings } = useInventory();
   const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    fetchMarketListings();
-  }, [fetchMarketListings]);
+    const unsubscribe = subscribeToMarketListings();
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [subscribeToMarketListings]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -21,10 +27,12 @@ export default function MarketScreen() {
     setRefreshing(false);
   }, [fetchMarketListings]);
 
-  const filteredListings = listings.filter((l) =>
-    (l.title || '').toLowerCase().includes(search.toLowerCase()) ||
-    (l.category || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredListings = listings.filter((l) => {
+    const matchesSearch = (l.title || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (l.category || '').toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = activeCategory === 'All' || (l.category || '').toLowerCase() === activeCategory.toLowerCase();
+    return matchesSearch && matchesCategory;
+  });
 
   const navigateToDetail = (id) => {
     router.push(`/(tabs)/market/${id}`);
@@ -44,30 +52,34 @@ export default function MarketScreen() {
         <TextInput
           style={styles.searchInput}
           placeholder="Search produce, supplies..."
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={themeColors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
       </View>
 
-      {/* Category Pills */}
-      <View style={styles.categoriesRow}>
-        {['All', 'Vegetables', 'Fruits', 'Herbs', 'Microgreens'].map((cat) => (
-          <Pressable
-            key={cat}
-            style={({ pressed }) => [
-              styles.categoryPill,
-              pressed && styles.categoryPillPressed,
-            ]}
-          >
-            <Text style={styles.categoryPillText}>{cat}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesRow} contentContainerStyle={styles.categoriesContent}>
+        {['All', 'Vegetables', 'Fruits', 'Herbs', 'Microgreens'].map((cat) => {
+          const isActive = activeCategory === cat;
+          return (
+            <Pressable
+              key={cat}
+              onPress={() => setActiveCategory(cat)}
+              style={({ pressed }) => [
+                styles.categoryPill,
+                isActive && styles.categoryPillActive,
+                pressed && !isActive && styles.categoryPillPressed,
+              ]}
+            >
+              <Text style={[styles.categoryPillText, isActive && styles.categoryPillTextActive]}>{cat}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {loading && listings.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={themeColors.primary} />
           <Text style={styles.loadingText}>Loading fresh produce...</Text>
         </View>
       ) : error ? (
@@ -109,8 +121,8 @@ export default function MarketScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
+              tintColor={themeColors.primary}
+              colors={[themeColors.primary]}
             />
           }
           ListEmptyComponent={
@@ -128,7 +140,7 @@ export default function MarketScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -140,6 +152,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
+    color: colors.text,
   },
   subtitle: {
     ...typography.body,
@@ -151,7 +164,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.lg,
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
@@ -168,10 +181,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   categoriesRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
-    gap: spacing.sm,
+    minHeight: 50,
+    flexGrow: 0,
+  },
+  categoriesContent: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
   },
   categoryPill: {
     backgroundColor: colors.surface,
@@ -180,6 +197,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: colors.border,
+    marginRight: spacing.sm,
+    flexShrink: 0,
+  },
+  categoryPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   categoryPillPressed: {
     opacity: 0.8,
@@ -187,6 +210,11 @@ const styles = StyleSheet.create({
   categoryPillText: {
     ...typography.bodySmall,
     color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  categoryPillTextActive: {
+    color: colors.background,
+    fontWeight: '700',
   },
   loadingContainer: {
     flex: 1,
@@ -241,6 +269,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     ...typography.h2,
     marginBottom: spacing.sm,
+    color: colors.text,
   },
   emptySubtitle: {
     ...typography.body,

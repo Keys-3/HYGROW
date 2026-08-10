@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import useAuth from '../../src/hooks/useAuth';
 import useAppStore from '../../src/store/useAppStore';
-import { borderRadius, colors, spacing, typography } from '../../src/theme/theme';
+import { borderRadius, useThemeColors, spacing, typography } from '../../src/theme/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   const { login, loading: authLoading, authInitialized } = useAuth();
   const user = useAppStore((state) => state.user);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
@@ -54,7 +56,7 @@ export default function LoginScreen() {
   if (!authInitialized) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={themeColors.primary} />
         <Text style={styles.loadingText}>Checking session...</Text>
       </View>
     );
@@ -92,7 +94,7 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               placeholder="farmer@example.com"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -107,7 +109,7 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               placeholder="Enter your password"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -125,7 +127,7 @@ export default function LoginScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={colors.background} />
+              <ActivityIndicator color={themeColors.background} />
             ) : (
               <Text style={styles.buttonText}>Sign In</Text>
             )}
@@ -146,7 +148,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,
@@ -179,6 +181,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h1,
     marginBottom: 4,
+    color: colors.text,
   },
   subtitle: {
     ...typography.body,
@@ -208,6 +211,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     ...typography.label,
     marginBottom: spacing.xs,
+    color: colors.text,
   },
   input: {
     backgroundColor: colors.surfaceLight,
@@ -242,6 +246,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     ...typography.bodySmall,
+    color: colors.textSecondary,
   },
   linkTextBold: {
     color: colors.primary,

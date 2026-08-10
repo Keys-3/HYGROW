@@ -1,20 +1,20 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { useThemeColors, spacing, borderRadius, typography, shadows } from '../theme/theme';
+import { getDefaultImage } from '../utils/helpers';
 
 export default function MarketListingCard({ listing, onPress }) {
   const themeColors = useThemeColors();
   const styles = createStyles(themeColors);
-  const firstLetter = listing.title ? listing.title.charAt(0).toUpperCase() : '?';
+  
+  const imageUrl = listing.imageUrl || listing.image_url || getDefaultImage(listing.category, listing.title);
 
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       onPress={onPress}
     >
-      <View style={styles.imagePlaceholder}>
-        <Text style={styles.imageText}>{firstLetter}</Text>
-      </View>
+      <Image source={{ uri: imageUrl }} style={styles.image} />
       <View style={styles.content}>
         <Text style={styles.title} numberOfLines={1}>{listing.title}</Text>
         <Text style={styles.price}>{listing.currency}{listing.price} <Text style={styles.unit}>{listing.unit}</Text></Text>
@@ -47,16 +47,10 @@ const createStyles = (theme) => StyleSheet.create({
     opacity: 0.8,
     transform: [{ scale: 0.98 }],
   },
-  imagePlaceholder: {
-    height: 120,
-    backgroundColor: theme.surfaceLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageText: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: theme.primary + '40',
+  image: {
+    height: 140,
+    width: '100%',
+    resizeMode: 'cover',
   },
   content: {
     padding: spacing.md,
