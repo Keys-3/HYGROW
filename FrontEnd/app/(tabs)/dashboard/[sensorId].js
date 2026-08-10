@@ -13,7 +13,7 @@ import ChartWidget from '../../../src/components/ChartWidget';
 import useSensorData from '../../../src/hooks/useSensorData';
 
 import {
-  colors,
+  useThemeColors,
   spacing,
   borderRadius,
   typography,
@@ -28,6 +28,8 @@ import {
 export default function SensorDetailScreen() {
   const router = useRouter();
   const { sensorId } = useLocalSearchParams();
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const { current, history } = useSensorData();
 
@@ -36,7 +38,7 @@ export default function SensorDetailScreen() {
   if (!config) {
     return (
       <View style={styles.center}>
-        <Text>Sensor not found.</Text>
+        <Text style={{ color: themeColors.text }}>Sensor not found.</Text>
       </View>
     );
   }
@@ -93,11 +95,11 @@ export default function SensorDetailScreen() {
       </Pressable>
 
       <View style={styles.header}>
-        <Text style={styles.title}>
+        <Text style={[styles.headerTitle, { color: config.color }]}>
           {config.label}
         </Text>
 
-        <Text style={styles.subtitle}>
+        <Text style={[styles.headerDesc, { color: config.color, opacity: 0.8 }]}>
           Live Sensor Analysis
         </Text>
       </View>
@@ -118,7 +120,7 @@ export default function SensorDetailScreen() {
           {currentValue.toFixed(1)}
         </Text>
 
-        <Text style={styles.currentUnit}>
+        <Text style={[styles.currentUnit, { color: config.color, opacity: 0.8 }]}>
           {config.unit}
         </Text>
       </View>
@@ -132,7 +134,7 @@ export default function SensorDetailScreen() {
         height={240}
       />
 
-      <Text style={styles.sectionTitle}>
+      <Text style={[styles.sectionTitle, { color: config.color }]}>
         Statistics
       </Text>
 
@@ -142,7 +144,7 @@ export default function SensorDetailScreen() {
             Minimum
           </Text>
 
-          <Text style={styles.statValue}>
+          <Text style={[styles.statValue, { color: config.color }]}>
             {stats.min.toFixed(1)}
             {config.unit}
           </Text>
@@ -153,7 +155,7 @@ export default function SensorDetailScreen() {
             Average
           </Text>
 
-          <Text style={styles.statValue}>
+          <Text style={[styles.statValue, { color: config.color }]}>
             {stats.avg.toFixed(1)}
             {config.unit}
           </Text>
@@ -164,7 +166,7 @@ export default function SensorDetailScreen() {
             Maximum
           </Text>
 
-          <Text style={styles.statValue}>
+          <Text style={[styles.statValue, { color: config.color }]}>
             {stats.max.toFixed(1)}
             {config.unit}
           </Text>
@@ -173,7 +175,7 @@ export default function SensorDetailScreen() {
 
       {threshold && (
         <>
-          <Text style={styles.sectionTitle}>
+          <Text style={[styles.sectionTitle, { color: config.color }]}>
             Recommended Range
           </Text>
 
@@ -183,7 +185,7 @@ export default function SensorDetailScreen() {
                 Minimum
               </Text>
 
-              <Text style={styles.thresholdValue}>
+              <Text style={[styles.thresholdValue, { color: config.color }]}>
                 {threshold.min} {config.unit}
               </Text>
             </View>
@@ -193,7 +195,7 @@ export default function SensorDetailScreen() {
                 Maximum
               </Text>
 
-              <Text style={styles.thresholdValue}>
+              <Text style={[styles.thresholdValue, { color: config.color }]}>
                 {threshold.max} {config.unit}
               </Text>
             </View>
@@ -206,7 +208,7 @@ export default function SensorDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -240,6 +242,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...typography.h1,
     marginBottom: 6,
+    color: colors.text,
   },
 
   headerDesc: {
@@ -269,6 +272,7 @@ const styles = StyleSheet.create({
   valueLabel: {
     ...typography.label,
     marginBottom: spacing.sm,
+    color: colors.textSecondary,
   },
 
   currentValue: {
@@ -279,6 +283,7 @@ const styles = StyleSheet.create({
   currentUnit: {
     fontSize: 18,
     fontWeight: '500',
+    color: colors.textSecondary,
   },
 
   statusRow: {
@@ -297,6 +302,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontWeight: '700',
     fontSize: 15,
+    color: colors.text,
   },
 
   rangeText: {
@@ -308,6 +314,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.h3,
     marginBottom: spacing.md,
+    color: colors.text,
   },
 
   chartContainer: {
@@ -353,6 +360,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
+    color: colors.text,
   },
 
   thresholdCard: {
@@ -372,9 +380,11 @@ const styles = StyleSheet.create({
 
   thresholdLabel: {
     ...typography.body,
+    color: colors.textSecondary,
   },
 
   thresholdValue: {
     fontWeight: '700',
+    color: colors.text,
   },
 });

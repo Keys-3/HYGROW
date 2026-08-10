@@ -1,26 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch, Modal } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Switch, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, spacing, borderRadius, typography } from '../../src/theme/theme';
+import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../src/theme/theme';
 import useAppStore from '../../src/store/useAppStore';
 import useAuth from '../../src/hooks/useAuth';
-import { deviceInfo } from '../../src/data/dummyData';
 import { formatDate, formatTime } from '../../src/utils/helpers';
 import permissionManager from '../../src/services/permissionManager';
-
-const ROLE_CONFIG = {
-  farmer: { label: 'Farmer', icon: '🚜', color: colors.success },
-  customer: { label: 'Customer', icon: '🛒', color: colors.info },
-  admin: { label: 'Administrator', icon: '🛡️', color: colors.warning },
-};
+import { LinearGradient } from 'expo-linear-gradient';
+import { GradientText } from '../../src/components/GradientText';
+import { db, auth } from '../../firebase';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { updatePassword } from 'firebase/auth';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const sensorData = useAppStore((state) => state.sensorData);
   const isDarkMode = useAppStore((state) => state.isDarkMode);
   const toggleTheme = useAppStore((state) => state.toggleTheme);
+  const updateUser = useAppStore((state) => state.updateUser);
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+    farm_name: user?.farm_name || '',
+    farm_location: user?.farm_location || '',
+    farm_size: user?.farm_size || '',
+    crops: user?.crops || '',
+    experience: user?.experience || '',
+    address: user?.address || '',
+    city: user?.city || '',
+    state: user?.state || '',
+    pincode: user?.pincode || '',
+  });
+
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const [permissions, setPermissions] = useState({
     camera: false,
@@ -28,7 +51,12 @@ export default function SettingsScreen() {
     notifications: false,
   });
 
-  // Check permissions on mount
+  const ROLE_CONFIG = {
+    farmer: { label: 'Farmer', icon: '🚜', color: themeColors.success },
+    customer: { label: 'Customer', icon: '🛒', color: themeColors.info },
+    admin: { label: 'Administrator', icon: '🛡️', color: themeColors.warning },
+  };
+
   useEffect(() => {
     let active = true;
     const checkAll = async () => {
@@ -79,6 +107,58 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setIsSavingProfile(true);
+    try {
+      const userRef = doc(db, 'users', user.id);
+      await setDoc(userRef, editForm, { merge: true });
+      updateUser(editForm);
+      setIsEditingProfile(false);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to update profile. Please try again.');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleEditProfileOpen = () => {
+    setEditForm({
+      name: user?.name || '',
+      phone: user?.phone || '',
+      farm_name: user?.farm_name || '',
+      farm_location: user?.farm_location || '',
+      farm_size: user?.farm_size || '',
+      crops: user?.crops || '',
+      experience: user?.experience || '',
+      address: user?.address || '',
+      city: user?.city || '',
+      state: user?.state || '',
+      pincode: user?.pincode || '',
+    });
+    setIsEditingProfile(true);
+  };
+
+  const handleChangePassword = async () => {
+    if (!auth.currentUser || newPassword.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      await updatePassword(auth.currentUser, newPassword);
+      alert("Password updated successfully!");
+      setShowPasswordModal(false);
+      setNewPassword('');
+    } catch (error) {
+      console.error("Error changing password:", error);
+      alert("Failed to change password. You may need to log out and log back in to verify your identity.");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const roleConfig = ROLE_CONFIG[user?.role] || ROLE_CONFIG.farmer;
   const isCustomer = user?.role === 'customer';
   const isFarmer = user?.role === 'farmer';
@@ -87,13 +167,18 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
+        <GradientText colors={themeColors.gradients.primary} style={styles.title}>Settings</GradientText>
       </View>
 
       {/* Account Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.card}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <Pressable onPress={handleEditProfileOpen}>
+            <Text style={styles.editBtnText}>Edit Profile</Text>
+          </Pressable>
+        </View>
+        <LinearGradient colors={themeColors.cardGradients.default} style={styles.card}>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || '?'}</Text>
@@ -101,20 +186,30 @@ export default function SettingsScreen() {
             <View style={styles.profileInfo}>
               <Text style={styles.userName}>{user?.name || 'User'}</Text>
               <Text style={styles.userEmail}>{user?.email}</Text>
-              <View style={[styles.roleBadge, { backgroundColor: roleConfig.color + '20' }]}>
+              {user?.id ? (
+                <Text style={styles.userMeta}>ID: {user.id.substring(0, 8).toUpperCase()}</Text>
+              ) : null}
+              {user?.created_at ? (
+                <Text style={styles.userMeta}>Joined: {new Date(user.created_at).toLocaleDateString()}</Text>
+              ) : null}
+              <View style={[styles.roleBadge, { backgroundColor: roleConfig.color + '20', marginTop: spacing.xs }]}>
                 <Text style={styles.roleIcon}>{roleConfig.icon}</Text>
                 <Text style={[styles.roleText, { color: roleConfig.color }]}>{roleConfig.label}</Text>
               </View>
             </View>
           </View>
-        </View>
+          <View style={styles.divider} />
+          <Pressable onPress={() => setShowPasswordModal(true)} style={styles.passwordBtn}>
+            <Text style={styles.passwordBtnText}>Change Login Password</Text>
+          </Pressable>
+        </LinearGradient>
       </View>
 
       {/* Contact/Shipping Info */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{isFarmer ? 'Farm Details' : 'Contact Details'}</Text>
-        <View style={styles.card}>
-          {isFarmer && user?.farm_name && (
+        <Text style={styles.sectionTitle}>Farm Details</Text>
+        <LinearGradient colors={themeColors.cardGradients.default} style={styles.card}>
+          {user?.farm_name ? (
             <>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Farm Name</Text>
@@ -122,8 +217,8 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.divider} />
             </>
-          )}
-          {isFarmer && user?.farm_location && (
+          ) : null}
+          {user?.farm_location ? (
             <>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Farm Location</Text>
@@ -131,49 +226,76 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.divider} />
             </>
-          )}
-          {user?.phone && (
+          ) : null}
+          {user?.farm_size ? (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Farm Size (Acres)</Text>
+                <Text style={styles.infoValue}>{user.farm_size}</Text>
+              </View>
+              <View style={styles.divider} />
+            </>
+          ) : null}
+          {user?.crops ? (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Specialized Crops</Text>
+                <Text style={styles.infoValue}>{user.crops}</Text>
+              </View>
+              <View style={styles.divider} />
+            </>
+          ) : null}
+          {user?.experience ? (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Experience</Text>
+                <Text style={styles.infoValue}>{user.experience} yrs</Text>
+              </View>
+              <View style={styles.divider} />
+            </>
+          ) : null}
+          {user?.phone ? (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Phone</Text>
               <Text style={styles.infoValue}>{user.phone}</Text>
             </View>
-          )}
-          {(user?.address || user?.city || user?.state || user?.pincode) && (
+          ) : null}
+          {Boolean(user?.address || user?.city || user?.state || user?.pincode) ? (
             <>
-              {user?.address && (
+              {user?.address ? (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Address</Text>
                   <Text style={styles.infoValue}>{user.address}</Text>
                 </View>
-              )}
-              {(user?.city || user?.state) && (
+              ) : null}
+              {Boolean(user?.city || user?.state) ? (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>City/State</Text>
                   <Text style={styles.infoValue}>{user.city}{user.city && user?.state ? ', ' : ''}{user.state}</Text>
                 </View>
-              )}
-              {user?.pincode && (
+              ) : null}
+              {user?.pincode ? (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Pincode</Text>
                   <Text style={styles.infoValue}>{user.pincode}</Text>
                 </View>
-              )}
+              ) : null}
             </>
-          )}
-        </View>
+          ) : null}
+        </LinearGradient>
       </View>
 
       {/* App Settings */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>App Settings</Text>
-        <View style={styles.card}>
+        <LinearGradient colors={themeColors.cardGradients.default} style={styles.card}>
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>Dark Mode</Text>
             <Switch
               value={isDarkMode}
               onValueChange={toggleTheme}
-              trackColor={{ false: colors.surfaceLight, true: colors.primary + '60' }}
-              thumbColor={isDarkMode ? colors.primary : colors.textMuted}
+              trackColor={{ false: themeColors.surfaceLight, true: themeColors.primary + '60' }}
+              thumbColor={isDarkMode ? themeColors.primary : themeColors.textMuted}
             />
           </View>
           <View style={styles.divider} />
@@ -182,18 +304,18 @@ export default function SettingsScreen() {
             <Switch
               value={permissions.notifications}
               onValueChange={requestNotificationPermission}
-              trackColor={{ false: colors.surfaceLight, true: colors.primary + '60' }}
-              thumbColor={permissions.notifications ? colors.primary : colors.textMuted}
+              trackColor={{ false: themeColors.surfaceLight, true: themeColors.primary + '60' }}
+              thumbColor={permissions.notifications ? themeColors.primary : themeColors.textMuted}
             />
           </View>
-        </View>
+        </LinearGradient>
       </View>
 
       {/* Farmer Permissions */}
       {isFarmer && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Essential Farmer Permissions</Text>
-          <View style={styles.card}>
+          <LinearGradient colors={themeColors.cardGradients.default} style={styles.card}>
             <View style={styles.permissionIntroRow}>
               <Text style={styles.permissionIntroText}>
                 Please grant the following device permissions to enable core farming assistance features.
@@ -274,20 +396,29 @@ export default function SettingsScreen() {
             {/* Request All Action Button */}
             <Pressable
               style={({ pressed }) => [
-                styles.grantAllBtn,
-                (permissions.camera && permissions.storage && permissions.notifications) && styles.grantAllBtnDisabled,
+                styles.grantAllBtnWrap,
                 pressed && styles.pressed
               ]}
               onPress={requestAllPermissions}
               disabled={permissions.camera && permissions.storage && permissions.notifications}
             >
-              <Text style={[styles.grantAllBtnText, (permissions.camera && permissions.storage && permissions.notifications) && { color: colors.textSecondary }]}>
+              <LinearGradient
+                colors={themeColors.gradients.primary}
+                style={[
+                  styles.grantAllBtn,
+                  (permissions.camera && permissions.storage && permissions.notifications) && styles.grantAllBtnDisabled
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={[styles.grantAllBtnText, (permissions.camera && permissions.storage && permissions.notifications) && { color: themeColors.textSecondary }]}>
                 {permissions.camera && permissions.storage && permissions.notifications
                   ? 'All Permissions Granted ✓'
                   : 'Grant All Permissions'}
               </Text>
-            </Pressable>
-          </View>
+            </LinearGradient>
+          </Pressable>
+          </LinearGradient>
         </View>
       )}
 
@@ -295,40 +426,47 @@ export default function SettingsScreen() {
       {!isCustomer && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Device Information</Text>
-          <View style={styles.card}>
+          <LinearGradient colors={themeColors.cardGradients.default} style={styles.card}>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Device ID</Text>
-              <Text style={styles.infoValue}>{deviceInfo.deviceId}</Text>
+              <Text style={styles.infoValue}>{sensorData?.deviceId || 'Not Connected'}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Firmware</Text>
-              <Text style={styles.infoValue}>v{deviceInfo.firmwareVersion}</Text>
+              <Text style={styles.infoValue}>v2.1.0 (Latest)</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>IP Address</Text>
-              <Text style={styles.infoValue}>{deviceInfo.ipAddress}</Text>
+              <Text style={styles.infoValue}>DHCP Configured</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Last Boot</Text>
-              <Text style={styles.infoValue}>{formatDate(deviceInfo.lastBoot)} {formatTime(deviceInfo.lastBoot)}</Text>
+              <Text style={styles.infoLabel}>Last Sync</Text>
+              <Text style={styles.infoValue}>
+                {sensorData?.lastSensorTimestamp ? `${formatDate(sensorData.lastSensorTimestamp)} ${formatTime(sensorData.lastSensorTimestamp)}` : 'Never'}
+              </Text>
             </View>
-          </View>
+          </LinearGradient>
         </View>
       )}
 
       {/* Admin Panel Link - Only for Admin */}
       {isAdmin && (
         <View style={styles.section}>
-          <Pressable style={({ pressed }) => [styles.adminCard, pressed && styles.pressed]}>
-            <Text style={styles.adminIcon}>🛡️</Text>
-            <View style={styles.adminInfo}>
-              <Text style={styles.adminTitle}>Admin Panel</Text>
-              <Text style={styles.adminDesc}>Manage users, orders, and settings</Text>
-            </View>
-            <Text style={styles.adminArrow}>→</Text>
+          <Pressable style={({ pressed }) => [styles.adminCardWrap, pressed && styles.pressed]}>
+            <LinearGradient
+              colors={themeColors.cardGradients.default}
+              style={[styles.adminCard, { borderColor: themeColors.warning + '50' }]}
+            >
+              <Text style={styles.adminIcon}>🛡️</Text>
+              <View style={styles.adminInfo}>
+                <Text style={styles.adminTitle}>Admin Panel</Text>
+                <Text style={styles.adminDesc}>Manage users, orders, and settings</Text>
+              </View>
+              <Text style={styles.adminArrow}>→</Text>
+            </LinearGradient>
           </Pressable>
         </View>
       )}
@@ -336,16 +474,26 @@ export default function SettingsScreen() {
       {/* Orders Link - For Customers */}
       {isCustomer && (
         <Pressable
-          style={({ pressed }) => [styles.ordersBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.ordersBtnWrap, pressed && styles.pressed]}
           onPress={() => router.push('/(tabs)/orders')}
         >
-          <Text style={styles.ordersBtnIcon}>📦</Text>
-          <Text style={styles.ordersBtnText}>View My Orders</Text>
+          <LinearGradient
+            colors={themeColors.cardGradients.default}
+            style={[styles.ordersBtn, { borderColor: themeColors.primary + '50' }]}
+          >
+            <Text style={styles.ordersBtnIcon}>📦</Text>
+            <Text style={styles.ordersBtnText}>View My Orders</Text>
+          </LinearGradient>
         </Pressable>
       )}
 
-      <Pressable style={({ pressed }) => [styles.logoutBtn, pressed && styles.pressed]} onPress={handleLogoutPress}>
-        <Text style={styles.logoutBtnText}>Sign Out</Text>
+      <Pressable style={({ pressed }) => [styles.logoutBtnWrap, pressed && styles.pressed]} onPress={handleLogoutPress}>
+        <LinearGradient
+          colors={themeColors.cardGradients.default}
+          style={[styles.logoutBtn, { borderColor: themeColors.danger + '50' }]}
+        >
+          <Text style={styles.logoutBtnText}>Sign Out</Text>
+        </LinearGradient>
       </Pressable>
 
       {/* Logout Confirmation Modal */}
@@ -383,6 +531,212 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
+      {/* Change Password Modal */}
+      <Modal
+        visible={showPasswordModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPasswordModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Change Password</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>New Password</Text>
+              <TextInput
+                style={styles.input}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                placeholder="Enter new password (min 6 chars)"
+                placeholderTextColor={themeColors.textMuted}
+              />
+            </View>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={({ pressed }) => [styles.modalBtn, styles.modalBtnCancel, pressed && styles.pressed]}
+                onPress={() => setShowPasswordModal(false)}
+                disabled={isChangingPassword}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.modalBtn, { backgroundColor: themeColors.primary }, pressed && styles.pressed]}
+                onPress={handleChangePassword}
+                disabled={isChangingPassword}
+              >
+                {isChangingPassword ? (
+                  <ActivityIndicator color={themeColors.background} size="small" />
+                ) : (
+                  <Text style={styles.modalBtnConfirmText}>Update Password</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={isEditingProfile}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isSavingProfile && setIsEditingProfile(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <LinearGradient colors={themeColors.cardGradients.default} style={[styles.modalContent, styles.editProfileModal]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <Pressable onPress={() => !isSavingProfile && setIsEditingProfile(false)} style={styles.closeBtn}>
+                <Text style={styles.closeBtnText}>✕</Text>
+              </Pressable>
+            </View>
+            
+            <ScrollView style={styles.editFormScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.formSectionTitle}>Personal Details</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editForm.name}
+                  onChangeText={(text) => setEditForm({...editForm, name: text})}
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editForm.phone}
+                  onChangeText={(text) => setEditForm({...editForm, phone: text})}
+                  keyboardType="phone-pad"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+
+              {isFarmer && (
+                <>
+                  <Text style={[styles.formSectionTitle, { marginTop: spacing.md }]}>Farm & Extra Details</Text>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Farm Name</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editForm.farm_name}
+                      onChangeText={(text) => setEditForm({...editForm, farm_name: text})}
+                      placeholderTextColor={themeColors.textMuted}
+                    />
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Farm Location</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editForm.farm_location}
+                      onChangeText={(text) => setEditForm({...editForm, farm_location: text})}
+                      placeholderTextColor={themeColors.textMuted}
+                    />
+                  </View>
+                  <View style={styles.rowInputs}>
+                    <View style={[styles.inputGroup, { flex: 1, marginRight: spacing.sm }]}>
+                      <Text style={styles.inputLabel}>Farm Size (Acres)</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={editForm.farm_size}
+                        onChangeText={(text) => setEditForm({...editForm, farm_size: text})}
+                        keyboardType="numeric"
+                        placeholderTextColor={themeColors.textMuted}
+                      />
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={styles.inputLabel}>Experience (Yrs)</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={editForm.experience}
+                        onChangeText={(text) => setEditForm({...editForm, experience: text})}
+                        keyboardType="numeric"
+                        placeholderTextColor={themeColors.textMuted}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Specialized Crops (comma separated)</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editForm.crops}
+                      onChangeText={(text) => setEditForm({...editForm, crops: text})}
+                      placeholder="e.g. Tomatoes, Lettuce, Basil"
+                      placeholderTextColor={themeColors.textMuted}
+                    />
+                  </View>
+                </>
+              )}
+
+              <Text style={[styles.formSectionTitle, { marginTop: spacing.md }]}>Address</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Street Address</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editForm.address}
+                  onChangeText={(text) => setEditForm({...editForm, address: text})}
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+              <View style={styles.rowInputs}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: spacing.sm }]}>
+                  <Text style={styles.inputLabel}>City</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editForm.city}
+                    onChangeText={(text) => setEditForm({...editForm, city: text})}
+                    placeholderTextColor={themeColors.textMuted}
+                  />
+                </View>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.inputLabel}>State</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editForm.state}
+                    onChangeText={(text) => setEditForm({...editForm, state: text})}
+                    placeholderTextColor={themeColors.textMuted}
+                  />
+                </View>
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Pincode</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editForm.pincode}
+                  onChangeText={(text) => setEditForm({...editForm, pincode: text})}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+              <View style={{ height: 20 }} />
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={({ pressed }) => [styles.modalBtn, styles.modalBtnCancel, pressed && styles.pressed]}
+                onPress={() => setIsEditingProfile(false)}
+                disabled={isSavingProfile}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.modalBtn, { backgroundColor: themeColors.primary }, pressed && styles.pressed]}
+                onPress={handleSaveProfile}
+                disabled={isSavingProfile}
+              >
+                {isSavingProfile ? (
+                  <ActivityIndicator color={themeColors.background} size="small" />
+                ) : (
+                  <Text style={styles.modalBtnConfirmText}>Save Changes</Text>
+                )}
+              </Pressable>
+            </View>
+          </LinearGradient>
+        </View>
+      </Modal>
+
       <Text style={styles.version}>HyGrow v1.0.0</Text>
 
       <View style={{ height: 40 }} />
@@ -390,10 +744,10 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.background,
   },
   content: {
     padding: spacing.lg,
@@ -404,21 +758,33 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
+    color: theme.text,
   },
   section: {
     marginBottom: spacing.lg,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
   sectionTitle: {
     ...typography.label,
-    marginBottom: spacing.sm,
-    marginLeft: spacing.xs,
+    color: theme.textSecondary,
+    marginBottom: 0, // override
+  },
+  editBtnText: {
+    ...typography.bodySmall,
+    color: theme.primary,
+    fontWeight: '600',
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.border,
   },
   profileRow: {
     flexDirection: 'row',
@@ -429,17 +795,17 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.primary + '20',
+    backgroundColor: theme.primary + '20',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.primary + '40',
+    borderColor: theme.primary + '40',
     marginRight: spacing.md,
   },
   avatarText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: colors.primary,
+    color: theme.primary,
   },
   profileInfo: {
     flex: 1,
@@ -447,11 +813,17 @@ const styles = StyleSheet.create({
   userName: {
     ...typography.h2,
     marginBottom: 4,
+    color: theme.text,
   },
   userEmail: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginBottom: spacing.sm,
+  },
+  userMeta: {
+    ...typography.caption,
+    color: theme.textSecondary,
+    marginBottom: 2,
   },
   roleBadge: {
     flexDirection: 'row',
@@ -479,10 +851,11 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     ...typography.body,
+    color: theme.text,
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: theme.border,
     marginVertical: spacing.xs,
   },
   infoRow: {
@@ -493,20 +866,22 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
   },
   infoValue: {
     ...typography.body,
     fontWeight: '500',
+    color: theme.text,
+  },
+  adminCardWrap: {
+    ...shadows.card,
   },
   adminCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.warning + '10',
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.warning + '30',
   },
   adminIcon: {
     fontSize: 32,
@@ -518,25 +893,27 @@ const styles = StyleSheet.create({
   adminTitle: {
     ...typography.body,
     fontWeight: '600',
+    color: theme.text,
   },
   adminDesc: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginTop: 2,
   },
   adminArrow: {
     fontSize: 20,
-    color: colors.warning,
+    color: theme.warning,
+  },
+  ordersBtnWrap: {
+    marginBottom: spacing.lg,
+    ...shadows.card,
   },
   ordersBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary + '10',
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.primary + '30',
-    marginBottom: spacing.lg,
     justifyContent: 'center',
   },
   ordersBtnIcon: {
@@ -545,55 +922,57 @@ const styles = StyleSheet.create({
   },
   ordersBtnText: {
     ...typography.body,
-    color: colors.primary,
+    color: theme.primary,
     fontWeight: '600',
   },
+  logoutBtnWrap: {
+    marginBottom: spacing.lg,
+    ...shadows.card,
+  },
   logoutBtn: {
-    backgroundColor: colors.danger + '20',
     padding: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.danger + '50',
-    marginBottom: spacing.lg,
   },
   pressed: {
     opacity: 0.8,
   },
   logoutBtnText: {
     ...typography.body,
-    color: colors.danger,
+    color: theme.danger,
     fontWeight: '600',
   },
   version: {
     ...typography.caption,
     textAlign: 'center',
-    color: colors.textMuted,
+    color: theme.textMuted,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: theme.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
   },
   modalContent: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.surface,
     borderRadius: borderRadius.xl,
     padding: spacing.xl,
     width: '100%',
     maxWidth: 360,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.border,
   },
   modalTitle: {
     ...typography.h2,
     textAlign: 'center',
     marginBottom: spacing.sm,
+    color: theme.text,
   },
   modalMessage: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
@@ -608,22 +987,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalBtnCancel: {
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: theme.surfaceLight,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.border,
   },
   modalBtnCancelText: {
     ...typography.body,
     fontWeight: '600',
-    color: colors.text,
+    color: theme.text,
   },
   modalBtnConfirm: {
-    backgroundColor: colors.danger,
+    backgroundColor: theme.danger,
   },
   modalBtnConfirmText: {
     ...typography.body,
     fontWeight: '600',
-    color: colors.background,
+    color: '#ffffff',
   },
   permissionIntroRow: {
     paddingVertical: spacing.xs,
@@ -631,7 +1010,7 @@ const styles = StyleSheet.create({
   },
   permissionIntroText: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 18,
   },
   permissionRow: {
@@ -649,48 +1028,123 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
     marginBottom: 2,
+    color: theme.text,
   },
   permissionRowDesc: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 14,
   },
   grantBtn: {
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: theme.surfaceLight,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: borderRadius.md,
     minWidth: 80,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.border,
   },
   grantBtnSuccess: {
-    backgroundColor: colors.success + '20',
-    borderColor: colors.success + '40',
+    backgroundColor: theme.successLight,
+    borderColor: theme.success + '40',
   },
   grantBtnText: {
     ...typography.caption,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.text,
   },
   grantBtnTextSuccess: {
-    color: colors.success,
+    color: theme.success,
+  },
+  grantAllBtnWrap: {
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.md,
+    ...shadows.card,
   },
   grantAllBtn: {
-    backgroundColor: colors.primary,
     padding: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
-    marginTop: spacing.sm,
   },
   grantAllBtnDisabled: {
-    backgroundColor: colors.surfaceLight,
-    opacity: 0.6,
+    opacity: 0.2,
   },
   grantAllBtnText: {
     ...typography.body,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  editProfileModal: {
+    maxHeight: '85%',
+    padding: spacing.lg,
+    backgroundColor: theme.surface,
+    borderColor: theme.border,
+    borderWidth: 1,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+    paddingBottom: spacing.sm,
+  },
+  closeBtn: {
+    padding: spacing.xs,
+    backgroundColor: theme.surfaceLight,
+    borderRadius: borderRadius.full,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtnText: {
+    color: theme.textSecondary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  editFormScroll: {
+    marginBottom: spacing.md,
+  },
+  formSectionTitle: {
+    ...typography.body,
+    fontWeight: '700',
+    color: theme.primary,
+    marginBottom: spacing.md,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inputGroup: {
+    marginBottom: spacing.lg,
+  },
+  inputLabel: {
+    ...typography.label,
+    color: theme.text,
+    marginBottom: spacing.xs,
+  },
+  input: {
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    color: theme.text,
+    fontSize: 16,
+    ...shadows.sm,
+  },
+  rowInputs: {
+    flexDirection: 'row',
+  },
+  passwordBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  passwordBtnText: {
+    ...typography.body,
+    color: theme.primary,
+    fontWeight: '600',
   },
 });

@@ -1,4 +1,4 @@
-const BACKEND_URL = "http://192.168.1.11:3000";
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
 
 export async function predictGrowth(data) {
 

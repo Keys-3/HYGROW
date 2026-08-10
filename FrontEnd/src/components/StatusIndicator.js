@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, typography, borderRadius } from '../theme/theme';
+import { useThemeColors, typography, borderRadius } from '../theme/theme';
 import { timeAgo } from '../utils/helpers';
 
 export default function StatusIndicator({ isOnline, lastUpdated }) {
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   return (
     <View style={styles.container}>
-      <View style={[styles.dot, { backgroundColor: isOnline ? colors.success : colors.danger }]} />
+      <View style={[styles.dot, { backgroundColor: isOnline ? themeColors.success : themeColors.danger }]} />
       <Text style={styles.text}>
         {isOnline ? 'Online' : 'Offline'} {lastUpdated ? `• ${timeAgo(lastUpdated)}` : ''}
       </Text>
@@ -14,11 +16,11 @@ export default function StatusIndicator({ isOnline, lastUpdated }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: theme.surfaceLight,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: borderRadius.full,
@@ -32,7 +34,7 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     fontWeight: '600',
   },
 });

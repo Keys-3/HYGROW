@@ -15,7 +15,7 @@ import {
 import { uploadDiseaseImage } from '../../../src/services/diseaseApi';
 import {
   borderRadius,
-  colors,
+  useThemeColors,
   shadows,
   spacing,
   typography,
@@ -23,6 +23,8 @@ import {
 
 export default function DiseaseScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
 
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -177,7 +179,7 @@ export default function DiseaseScreen() {
         <View style={styles.loadingArea}>
           <ActivityIndicator
             size="large"
-            color={colors.success}
+            color={themeColors.success}
           />
 
           <Text style={styles.loadingText}>
@@ -253,10 +255,10 @@ export default function DiseaseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.background,
   },
   content: {
     padding: spacing.lg,
@@ -267,24 +269,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   backText: {
-    color: colors.primary,
+    color: theme.primary,
     ...typography.body,
     fontWeight: '600',
   },
   title: {
     ...typography.h1,
+    color: theme.text,
   },
   subtitle: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginBottom: spacing.lg,
   },
   uploadArea: {
     height: 250,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.surface,
     borderRadius: borderRadius.lg,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: theme.border,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
@@ -304,7 +307,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   placeholderText: {
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     ...typography.body,
   },
   buttonRow: {
@@ -314,16 +317,16 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.primary,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
   },
   secondaryBtn: {
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: theme.surfaceLight,
   },
   actionBtnText: {
-    color: colors.text,
+    color: theme.text,
     ...typography.body,
     fontWeight: '600',
   },
@@ -333,15 +336,15 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: spacing.md,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     ...typography.body,
   },
   resultsCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.warning + '50',
+    borderColor: theme.warning + '50',
     ...shadows.card,
   },
   resultHeader: {
@@ -352,7 +355,7 @@ const styles = StyleSheet.create({
   },
   resultTitle: {
     ...typography.h2,
-    color: colors.warning,
+    color: theme.warning,
     flex: 1,
     marginRight: 8,
   },
@@ -362,31 +365,33 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   badgeWarning: {
-    backgroundColor: colors.warning + '20',
+    backgroundColor: theme.warning + '20',
   },
   badgeDanger: {
-    backgroundColor: colors.danger + '20',
+    backgroundColor: theme.danger + '20',
   },
   badgeText: {
     ...typography.caption,
-    color: colors.text,
+    color: theme.text,
     fontWeight: '600',
     textTransform: 'uppercase',
   },
   confidence: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginBottom: spacing.md,
   },
   desc: {
     ...typography.body,
     marginBottom: spacing.lg,
     lineHeight: 22,
+    color: theme.text,
   },
   recTitle: {
     ...typography.body,
     fontWeight: '700',
     marginBottom: spacing.sm,
+    color: theme.text,
   },
   recItem: {
     flexDirection: 'row',
@@ -400,7 +405,7 @@ const styles = StyleSheet.create({
   },
   recText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     flex: 1,
   },
 });

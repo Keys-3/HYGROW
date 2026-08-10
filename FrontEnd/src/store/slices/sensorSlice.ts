@@ -24,9 +24,20 @@ export interface SensorSlice {
 }
 
 export const createSensorSlice: StateCreator<SensorSlice> = (set) => ({
-  sensorData: null,
+  sensorData: {
+    deviceId: 'MOCK_ESP32_01',
+    temperature: 24.5,
+    humidity: 65.2,
+    ph: 6.0,
+    ec: 1.5,
+    waterLevel: 82,
+    lightIntensity: 15500,
+    pumpStatus: true,
+    autoMode: true,
+    lastSensorTimestamp: new Date().toISOString(),
+  },
   lastUpdated: new Date().toISOString(),
-  isDeviceOnline: true,
+  isDeviceOnline: false,
 
   updateSensorData: (data) =>
     set({

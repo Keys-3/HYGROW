@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,45 +9,52 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import useInventory from '../../../src/hooks/useInventory';
 import useAppStore from '../../../src/store/useAppStore';
-import { colors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
+import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
 import { formatDate } from '../../../src/utils/helpers';
+import { GradientText } from '../../../src/components/GradientText';
 
-function InventoryCard({ item, onPress }) {
-  const statusColor = item.is_listed ? colors.success : colors.textMuted;
+function InventoryCard({ item, onPress, themeColors, styles }) {
+  const statusColor = item.is_listed ? themeColors.success : themeColors.textMuted;
   const statusText = item.is_listed ? 'Listed' : 'Not Listed';
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.cardWrap, pressed && styles.cardPressed]}
       onPress={onPress}
     >
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleRow}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
-            <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
+      <LinearGradient
+        colors={themeColors.cardGradients.default}
+        style={[styles.card, { borderColor: statusColor + '40' }]}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
+              <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
+            </View>
+          </View>
+          <Text style={styles.cardCategory}>{item.category}</Text>
+        </View>
+
+        <View style={styles.cardBody}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Quantity:</Text>
+            <Text style={[styles.infoValue, { color: themeColors.text }]}>{item.quantity} {item.unit}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Price:</Text>
+            <Text style={[styles.infoValue, { color: themeColors.primary }]}>₹{item.price_per_unit} per {item.unit}</Text>
           </View>
         </View>
-        <Text style={styles.cardCategory}>{item.category}</Text>
-      </View>
 
-      <View style={styles.cardBody}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Quantity:</Text>
-          <Text style={styles.infoValue}>{item.quantity} {item.unit}</Text>
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardDate}>Added {formatDate(item.created_at)}</Text>
+          <Text style={styles.cardEdit}>Edit →</Text>
         </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Price:</Text>
-          <Text style={styles.infoValue}>₹{item.price_per_unit} per {item.unit}</Text>
-        </View>
-      </View>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.cardDate}>Added {formatDate(item.created_at)}</Text>
-        <Text style={styles.cardEdit}>Edit →</Text>
-      </View>
+      </LinearGradient>
     </Pressable>
   );
 }
@@ -57,6 +64,8 @@ export default function InventoryScreen() {
   const { inventory, loading, error, fetchInventory } = useInventory();
   const user = useAppStore((state) => state.user);
   const [refreshing, setRefreshing] = useState(false);
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const navigateToEdit = (itemId = null) => {
     if (itemId) {
@@ -68,7 +77,6 @@ export default function InventoryScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // The inventory updates in real-time via onSnapshot, but we can trigger a refresh if needed
     setTimeout(() => setRefreshing(false), 500);
   };
 
@@ -91,32 +99,45 @@ export default function InventoryScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>📦 Inventory</Text>
+        <GradientText colors={themeColors.gradients.primary} style={styles.title}>
+          📦 Inventory
+        </GradientText>
         <Text style={styles.subtitle}>Manage your farm products</Text>
       </View>
 
       {/* Stats Cards */}
       <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{totalItems}</Text>
+        <LinearGradient colors={themeColors.cardGradients.default} style={styles.statCard}>
+          <Text style={[styles.statValue, { color: themeColors.text }]}>{totalItems}</Text>
           <Text style={styles.statLabel}>Total Items</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: colors.success }]}>{listedItems}</Text>
+        </LinearGradient>
+        <LinearGradient colors={themeColors.cardGradients.default} style={styles.statCard}>
+          <GradientText colors={themeColors.gradients.primary} style={styles.statValue}>
+            {listedItems}
+          </GradientText>
           <Text style={styles.statLabel}>Listed</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: colors.info }]}>{totalStock.toFixed(0)}</Text>
+        </LinearGradient>
+        <LinearGradient colors={themeColors.cardGradients.default} style={styles.statCard}>
+          <GradientText colors={themeColors.gradients.ph} style={styles.statValue}>
+            {totalStock.toFixed(0)}
+          </GradientText>
           <Text style={styles.statLabel}>Total Stock</Text>
-        </View>
+        </LinearGradient>
       </View>
 
       {/* Add Button */}
       <Pressable
-        style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
+        style={({ pressed }) => [styles.addBtnWrap, pressed && styles.addBtnPressed]}
         onPress={() => navigateToEdit()}
       >
-        <Text style={styles.addBtnText}>+ Add New Item</Text>
+        <LinearGradient
+          colors={themeColors.gradients.primary}
+          style={styles.addBtn}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <Text style={styles.addBtnText}>+ Add New Item</Text>
+        </LinearGradient>
       </Pressable>
 
       {error ? (
@@ -127,7 +148,7 @@ export default function InventoryScreen() {
 
       {loading && inventory.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={themeColors.primary} />
           <Text style={styles.loadingText}>Loading inventory...</Text>
         </View>
       ) : (
@@ -135,7 +156,12 @@ export default function InventoryScreen() {
           data={inventory}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <InventoryCard item={item} onPress={() => navigateToEdit(item.id)} />
+            <InventoryCard 
+              item={item} 
+              onPress={() => navigateToEdit(item.id)}
+              themeColors={themeColors}
+              styles={styles}
+            />
           )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -143,8 +169,8 @@ export default function InventoryScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
+              tintColor={themeColors.primary}
+              colors={[themeColors.primary]}
             />
           }
           ListEmptyComponent={
@@ -155,10 +181,17 @@ export default function InventoryScreen() {
                 Add your first product to start managing your inventory
               </Text>
               <Pressable
-                style={styles.emptyBtn}
+                style={({ pressed }) => [styles.emptyBtnWrap, pressed && styles.cardPressed]}
                 onPress={() => navigateToEdit()}
               >
-                <Text style={styles.emptyBtnText}>Add First Item</Text>
+                <LinearGradient
+                  colors={themeColors.gradients.primary}
+                  style={styles.emptyBtn}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.emptyBtnText}>Add First Item</Text>
+                </LinearGradient>
               </Pressable>
             </View>
           }
@@ -168,10 +201,10 @@ export default function InventoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.background,
   },
   header: {
     padding: spacing.lg,
@@ -180,10 +213,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
+    color: theme.text,
   },
   subtitle: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginTop: 4,
   },
   statsRow: {
@@ -194,41 +228,44 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.border,
     ...shadows.small,
   },
   statValue: {
     fontSize: 28,
     fontWeight: '700',
-    color: colors.primary,
   },
   statLabel: {
     ...typography.caption,
     marginTop: 4,
+    color: theme.textSecondary,
+  },
+  addBtnWrap: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.md,
+    ...shadows.small,
   },
   addBtn: {
-    backgroundColor: colors.primary,
-    marginHorizontal: spacing.lg,
     padding: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
-    marginBottom: spacing.md,
   },
   addBtnPressed: {
     opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   addBtnText: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.background,
+    color: '#FFFFFF', 
   },
   errorBanner: {
-    backgroundColor: colors.danger + '20',
+    backgroundColor: theme.danger + '20',
     marginHorizontal: spacing.lg,
     padding: spacing.md,
     borderRadius: borderRadius.md,
@@ -236,7 +273,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.body,
-    color: colors.danger,
+    color: theme.danger,
     textAlign: 'center',
   },
   listContent: {
@@ -249,17 +286,18 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginTop: spacing.md,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
+  cardWrap: {
     marginBottom: spacing.md,
+    borderRadius: borderRadius.lg,
+    ...shadows.card,
+  },
+  card: {
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
   },
   cardPressed: {
     opacity: 0.8,
@@ -268,7 +306,7 @@ const styles = StyleSheet.create({
   cardHeader: {
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: theme.border,
   },
   cardTitleRow: {
     flexDirection: 'row',
@@ -280,6 +318,7 @@ const styles = StyleSheet.create({
     ...typography.h3,
     flex: 1,
     marginRight: spacing.sm,
+    color: theme.text,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -293,7 +332,7 @@ const styles = StyleSheet.create({
   },
   cardCategory: {
     ...typography.caption,
-    color: colors.textMuted,
+    color: theme.textMuted,
   },
   cardBody: {
     padding: spacing.md,
@@ -305,7 +344,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
   },
   infoValue: {
     ...typography.bodySmall,
@@ -317,14 +356,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
     paddingTop: spacing.sm,
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   cardDate: {
     ...typography.caption,
+    color: theme.textMuted,
   },
   cardEdit: {
     ...typography.bodySmall,
-    color: colors.primary,
+    color: theme.primary,
     fontWeight: '600',
   },
   emptyContainer: {
@@ -338,15 +378,19 @@ const styles = StyleSheet.create({
   emptyTitle: {
     ...typography.h2,
     marginBottom: spacing.sm,
+    color: theme.text,
   },
   emptySubtitle: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
   },
+  emptyBtnWrap: {
+    borderRadius: borderRadius.md,
+    ...shadows.small,
+  },
   emptyBtn: {
-    backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
@@ -354,6 +398,6 @@ const styles = StyleSheet.create({
   emptyBtnText: {
     ...typography.body,
     fontWeight: '600',
-    color: colors.background,
+    color: '#FFFFFF', 
   },
 });

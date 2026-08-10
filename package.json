@@ -1,0 +1,17 @@
+{
+  "name": "hygrow-root",
+  "version": "1.0.0",
+  "description": "Root package.json to run frontend and backend concurrently",
+  "scripts": {
+    "start": "concurrently \"npm run start-frontend\" \"npm run start-backend\"",
+    "dev": "concurrently \"npm run dev-frontend\" \"npm run dev-backend\"",
+    "start-frontend": "cd FrontEnd && npm start",
+    "start-backend": "cd BackEnd && npm start",
+    "dev-frontend": "cd FrontEnd && npm start",
+    "dev-backend": "cd BackEnd && npm run dev",
+    "install-all": "npm install && cd FrontEnd && npm install && cd ../BackEnd && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -18,15 +18,15 @@ import { ActivityIndicator, Platform, StyleSheet, Text, useWindowDimensions, Vie
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sidebar } from '../../src/components/Sidebar';
 import useAuth from '../../src/hooks/useAuth';
-import { colors } from '../../src/theme/theme';
+import { useThemeColors, colors } from '../../src/theme/theme';
 import useAppStore from '../../src/store/useAppStore';
-import { currentTelemetry } from '../../src/data/dummyData';
-import { SENSOR_KEYS, SENSOR_THRESHOLDS, SENSOR_CONFIG } from '../../src/utils/constants';
+import { SENSOR_KEYS, SENSOR_THRESHOLDS, SENSOR_CONFIG, DEFAULT_SENSOR_DATA } from '../../src/utils/constants';
 import { getSensorStatus, formatSensorValue } from '../../src/utils/helpers';
 
 // Tab bar icon component using Lucide icons
 function TabIcon({ Icon, label, focused }) {
-  const iconColor = focused ? colors.primary : colors.textMuted;
+  const themeColors = useThemeColors();
+  const iconColor = focused ? themeColors.primary : themeColors.textMuted;
   const iconSize = focused ? 26 : 24;
 
   return (
@@ -36,7 +36,7 @@ function TabIcon({ Icon, label, focused }) {
         size={iconSize}
         strokeWidth={focused ? 2.5 : 2}
       />
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+      <Text style={[styles.tabLabel, { color: themeColors.textMuted }, focused && { color: themeColors.primary, fontWeight: '600' }]}>
         {label}
       </Text>
     </View>
@@ -47,6 +47,7 @@ function TabIcon({ Icon, label, focused }) {
 function RoleGuard({ children, userRole, targetRole }) {
   const router = useRouter();
   const pathname = usePathname();
+  const themeColors = useThemeColors();
 
   useEffect(() => {
     if (userRole === 'customer' && targetRole !== 'customer') {
@@ -56,8 +57,8 @@ function RoleGuard({ children, userRole, targetRole }) {
 
   if (userRole === 'customer' && targetRole !== 'customer') {
     return (
-      <View style={styles.guardContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.guardContainer, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
       </View>
     );
   }
@@ -70,6 +71,7 @@ export default function TabLayout() {
   const { width } = useWindowDimensions();
   const router = useRouter();
   const { user, isAuthenticated, authInitialized, loading: authLoading } = useAuth();
+  const themeColors = useThemeColors();
 
   useEffect(() => {
     // Wait for auth to initialize before redirecting
@@ -91,7 +93,7 @@ export default function TabLayout() {
 
     const runSimulation = () => {
       try {
-        const baseTelemetry = useAppStore.getState().sensorData || currentTelemetry;
+        const baseTelemetry = useAppStore.getState().sensorData || DEFAULT_SENSOR_DATA;
         const liveData = {
           ...baseTelemetry,
           temperature: Number((baseTelemetry.temperature + (Math.random() - 0.5) * 0.6).toFixed(1)),
@@ -151,8 +153,8 @@ export default function TabLayout() {
   // Show loading while auth state is being determined
   if (!authInitialized || authLoading || !isAuthenticated) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
         <Text style={styles.loadingText}>Restoring session...</Text>
       </View>
     );
@@ -180,10 +182,11 @@ export default function TabLayout() {
 
   if (isLargeScreen) {
     return (
-      <View style={styles.desktopContainer}>
+      <View style={[styles.desktopContainer, { backgroundColor: themeColors.background }]}>
         <Sidebar />
         <View style={styles.content}>
           <Tabs
+            sceneContainerStyle={{ backgroundColor: 'transparent' }}
             screenOptions={{
               headerShown: false,
               tabBarStyle: { display: 'none' },
@@ -204,6 +207,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      sceneContainerStyle={{ backgroundColor: 'transparent' }}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -211,10 +215,12 @@ export default function TabLayout() {
           height: tabBarHeight,
           paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 8,
+          backgroundColor: themeColors.tabBar,
+          borderTopColor: themeColors.tabBarBorder,
         },
         tabBarShowLabel: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor: themeColors.primary,
+        tabBarInactiveTintColor: themeColors.textMuted,
       }}
     >
       <Tabs.Screen
@@ -352,7 +358,7 @@ const styles = StyleSheet.create({
   desktopContainer: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: '#0F172A',
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,

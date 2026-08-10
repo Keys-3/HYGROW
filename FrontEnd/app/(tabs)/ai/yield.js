@@ -1,31 +1,71 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, ActivityIndicator, Modal, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
+import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
 import useSensorData from '../../../src/hooks/useSensorData';
 import { predictGrowth } from "../../../src/services/growthPrediction";
 
-const STAGES = ['Seedling', 'Vegetative', 'Flowering', 'Harvest'];
+const CROP_OPTIONS = [
+  { label: 'Butterhead Lettuce', temp: '22', hum: '65', ph: '6.0', ec: '1.2', water: '80', light: '15000' },
+  { label: 'Tomatoes', temp: '26', hum: '70', ph: '6.2', ec: '2.5', water: '70', light: '25000' },
+  { label: 'Basil', temp: '24', hum: '60', ph: '6.5', ec: '1.6', water: '75', light: '20000' },
+  { label: 'Spinach', temp: '18', hum: '60', ph: '6.5', ec: '1.8', water: '85', light: '12000' },
+  { label: 'Strawberries', temp: '20', hum: '70', ph: '5.8', ec: '1.5', water: '65', light: '22000' },
+];
 
 export default function YieldScreen() {
   const router = useRouter();
   const { current } = useSensorData();
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   
-  const [crop, setCrop] = useState('Butterhead Lettuce');
-  const [stage, setStage] = useState('Vegetative');
+  const [crop, setCrop] = useState(CROP_OPTIONS[0].label);
+  const [showCropModal, setShowCropModal] = useState(false);
+
+  // Editable sensor readings
+  const [temperature, setTemperature] = useState(current?.temperature?.toString() ?? '25');
+  const [humidity, setHumidity] = useState(current?.humidity?.toString() ?? '60');
+  const [ph, setPh] = useState(current?.ph?.toString() ?? '6.0');
+  const [ec, setEc] = useState(current?.ec?.toString() ?? '1.5');
+  const [waterLevel, setWaterLevel] = useState(current?.waterLevel?.toString() ?? '80');
+  const [lightIntensity, setLightIntensity] = useState(current?.lightIntensity?.toString() ?? '15000');
+  
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
 
-const handlePredict = async () => {
+  // When a crop is selected, auto-fill with optimal readings
+  const handleSelectCrop = (selectedCrop) => {
+    setCrop(selectedCrop.label);
+    setTemperature(selectedCrop.temp);
+    setHumidity(selectedCrop.hum);
+    setPh(selectedCrop.ph);
+    setEc(selectedCrop.ec);
+    setWaterLevel(selectedCrop.water);
+    setLightIntensity(selectedCrop.light);
+    setShowCropModal(false);
+  };
+
+  const handleUseCurrentSensors = () => {
+    setTemperature(current?.temperature?.toString() ?? '25');
+    setHumidity(current?.humidity?.toString() ?? '60');
+    setPh(current?.ph?.toString() ?? '6.0');
+    setEc(current?.ec?.toString() ?? '1.5');
+    setWaterLevel(current?.waterLevel?.toString() ?? '80');
+    setLightIntensity(current?.lightIntensity?.toString() ?? '15000');
+  };
+
+  const handlePredict = async () => {
     try {
         setLoading(true);
         setResults(null);
         
         const payload = {
-          temperature: current?.temperature ?? 25,
-          humidity: current?.humidity ?? 60,
-          ph: current?.ph ?? 6.0,
-          tds: current?.ec ? Math.round(current.ec * 2) : 500,
+          temperature: parseFloat(temperature) || 25,
+          humidity: parseFloat(humidity) || 60,
+          ph: parseFloat(ph) || 6.0,
+          tds: Math.round((parseFloat(ec) || 1.5) * 500), // convert EC to rough TDS
+          waterLevel: parseFloat(waterLevel) || 80,
+          lightIntensity: parseFloat(lightIntensity) || 15000,
         };
 
         const response = await predictGrowth(payload);
@@ -36,7 +76,7 @@ const handlePredict = async () => {
     } finally {
         setLoading(false);
     }
-};
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -45,50 +85,103 @@ const handlePredict = async () => {
       </Pressable>
 
       <Text style={styles.title}>Yield Prediction</Text>
-      <Text style={styles.subtitle}>Estimate crop yield based on current conditions</Text>
+      <Text style={styles.subtitle}>Estimate crop yield based on conditions</Text>
 
       <View style={styles.formCard}>
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Crop Type</Text>
-          <TextInput
-            style={styles.input}
-            value={crop}
-            onChangeText={setCrop}
-            placeholder="e.g. Butterhead Lettuce"
-            placeholderTextColor={colors.textMuted}
-          />
+          <Pressable style={styles.dropdown} onPress={() => setShowCropModal(true)}>
+            <Text style={[styles.dropdownText, !crop && { color: themeColors.textMuted }]}>
+              {crop || 'Select a crop'}
+            </Text>
+            <Text style={styles.dropdownIcon}>▼</Text>
+          </Pressable>
         </View>
 
         <View style={styles.currentConditions}>
-  <Text style={styles.label}>Current Conditions Included:</Text>
+          <View style={styles.conditionsHeader}>
+            <Text style={styles.label}>Environmental Readings</Text>
+            <Pressable onPress={handleUseCurrentSensors}>
+              <Text style={styles.useSensorsText}>Use Sensors</Text>
+            </Pressable>
+          </View>
 
-  <Text style={styles.conditionText}>
-    Temp: {current?.temperature ?? "--"}°C
-  </Text>
+          <View style={styles.readingsGrid}>
+            <View style={styles.readingInputWrapper}>
+              <Text style={styles.readingLabel}>Temp (°C)</Text>
+              <TextInput
+                style={styles.readingInput}
+                value={temperature}
+                onChangeText={setTemperature}
+                keyboardType="numeric"
+                placeholderTextColor={themeColors.textMuted}
+              />
+            </View>
 
-  <Text style={styles.conditionText}>
-    Humidity: {current?.humidity ?? "--"}%
-  </Text>
+            <View style={styles.readingInputWrapper}>
+              <Text style={styles.readingLabel}>Humidity (%)</Text>
+              <TextInput
+                style={styles.readingInput}
+                value={humidity}
+                onChangeText={setHumidity}
+                keyboardType="numeric"
+                placeholderTextColor={themeColors.textMuted}
+              />
+            </View>
 
-  <Text style={styles.conditionText}>
-    pH: {current?.ph ?? "--"}
-  </Text>
+            <View style={styles.readingInputWrapper}>
+              <Text style={styles.readingLabel}>pH Level</Text>
+              <TextInput
+                style={styles.readingInput}
+                value={ph}
+                onChangeText={setPh}
+                keyboardType="numeric"
+                placeholderTextColor={themeColors.textMuted}
+              />
+            </View>
 
-  <Text style={styles.conditionText}>
-    EC: {current?.ec ?? "--"} mS/cm
-  </Text>
+            <View style={styles.readingInputWrapper}>
+              <Text style={styles.readingLabel}>EC (mS/cm)</Text>
+              <TextInput
+                style={styles.readingInput}
+                value={ec}
+                onChangeText={setEc}
+                keyboardType="numeric"
+                placeholderTextColor={themeColors.textMuted}
+              />
+            </View>
 
-  <Text style={styles.conditionText}>
-    Light: {current?.light ?? "--"} lux
-  </Text>
-</View>
+            <View style={styles.readingInputWrapper}>
+              <Text style={styles.readingLabel}>Water Lvl (%)</Text>
+              <TextInput
+                style={styles.readingInput}
+                value={waterLevel}
+                onChangeText={setWaterLevel}
+                keyboardType="numeric"
+                placeholderTextColor={themeColors.textMuted}
+              />
+            </View>
+
+            <View style={styles.readingInputWrapper}>
+              <Text style={styles.readingLabel}>Light (lux)</Text>
+              <TextInput
+                style={styles.readingInput}
+                value={lightIntensity}
+                onChangeText={setLightIntensity}
+                keyboardType="numeric"
+                placeholderTextColor={themeColors.textMuted}
+              />
+            </View>
+          </View>
+        </View>
+        
         <Pressable 
           style={({ pressed }) => [styles.predictBtn, pressed && styles.pressed, loading && styles.disabledBtn]}
           onPress={handlePredict}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color={colors.background} />
+            <ActivityIndicator color={themeColors.background} />
           ) : (
             <Text style={styles.predictBtnText}>Predict Yield</Text>
           )}
@@ -100,19 +193,18 @@ const handlePredict = async () => {
           <Text style={styles.resultsTitle}>AI Growth Prediction</Text>
 
           <View style={styles.primaryResultCard}>
-            <Text style={styles.timeValue}>
-              {results.harvestTime}
-            </Text>
-
-            <Text style={styles.stageText}>
-              {results.growthStatus}
-            </Text>
+            <View style={styles.timeBox}>
+              <Text style={styles.timeLabel}>Est. Harvest</Text>
+              <Text style={styles.timeValue}>{results.harvestTime || 'N/A'}</Text>
+            </View>
+            <View style={styles.verticalDivider} />
+            <View style={styles.timeBox}>
+              <Text style={styles.timeLabel}>Status</Text>
+              <Text style={styles.stageText}>{results.growthStatus || 'N/A'}</Text>
+            </View>
           </View>
 
-          <Text style={styles.factorsTitle}>
-            Recommendations
-          </Text>
-
+          <Text style={styles.factorsTitle}>Recommendations</Text>
           {results.recommendations?.map((item, index) => (
             <Text key={index} style={styles.conditionText}>
               • {item}
@@ -122,110 +214,196 @@ const handlePredict = async () => {
       )}
       
       <View style={{ height: 40 }} />
+
+      {/* Crop Selection Modal */}
+      <Modal visible={showCropModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Crop</Text>
+              <Pressable onPress={() => setShowCropModal(false)} style={styles.closeBtn}>
+                <Text style={styles.closeBtnText}>✕</Text>
+              </Pressable>
+            </View>
+            <FlatList
+              data={CROP_OPTIONS}
+              keyExtractor={(item) => item.label}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={styles.cropOption}
+                  onPress={() => handleSelectCrop(item)}
+                >
+                  <Text style={[styles.cropOptionText, crop === item.label && { color: themeColors.primary, fontWeight: '700' }]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const createStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   content: { padding: spacing.lg, paddingTop: 60 },
   backBtn: { marginBottom: spacing.md },
-  backText: { color: colors.primary, ...typography.body, fontWeight: '600' },
-  title: { ...typography.h1 },
-  subtitle: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.lg },
+  backText: { color: theme.primary, ...typography.body, fontWeight: '600' },
+  title: { ...typography.h1, color: theme.text },
+  subtitle: { ...typography.body, color: theme.textSecondary, marginBottom: spacing.lg },
   
   formCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.surface,
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.border,
     ...shadows.card,
     marginBottom: spacing.xl,
   },
   inputGroup: { marginBottom: spacing.lg },
-  label: { ...typography.label, marginBottom: spacing.sm },
-  input: {
-    backgroundColor: colors.surfaceLight,
+  label: { ...typography.label, marginBottom: spacing.sm, color: theme.text },
+  dropdown: {
+    backgroundColor: theme.surfaceLight,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.border,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    color: colors.text,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownText: {
+    color: theme.text,
     fontSize: 16,
   },
-  stageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+  dropdownIcon: {
+    color: theme.textSecondary,
+    fontSize: 12,
   },
-  stageBtn: {
-    backgroundColor: colors.surfaceLight,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  stageBtnActive: {
-    backgroundColor: colors.info + '20',
-    borderColor: colors.info,
-  },
-  stageText: { color: colors.textSecondary, ...typography.bodySmall },
-  stageTextActive: { color: colors.info, fontWeight: '600' },
   currentConditions: {
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: theme.surfaceLight,
     padding: spacing.md,
     borderRadius: borderRadius.md,
     marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
-  conditionText: { color: colors.textSecondary, ...typography.bodySmall },
+  conditionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  useSensorsText: {
+    color: theme.primary,
+    ...typography.bodySmall,
+    fontWeight: '700',
+  },
+  readingsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  readingInputWrapper: {
+    width: '48%',
+    marginBottom: spacing.xs,
+  },
+  readingLabel: {
+    ...typography.caption,
+    color: theme.textSecondary,
+    marginBottom: 4,
+  },
+  readingInput: {
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
+    color: theme.text,
+    fontSize: 14,
+  },
+  conditionText: { color: theme.textSecondary, ...typography.bodySmall, marginBottom: 4 },
   predictBtn: {
-    backgroundColor: colors.info,
+    backgroundColor: theme.info,
     padding: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
   },
   pressed: { opacity: 0.8 },
   disabledBtn: { opacity: 0.5 },
-  predictBtnText: { color: colors.background, ...typography.body, fontWeight: '700' },
+  predictBtnText: { color: theme.background, ...typography.body, fontWeight: '700' },
 
   resultsArea: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.surface,
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.info + '50',
+    borderColor: theme.info + '50',
     ...shadows.card,
   },
-  resultsTitle: { ...typography.h3, marginBottom: spacing.md },
+  resultsTitle: { ...typography.h3, marginBottom: spacing.md, color: theme.text },
   primaryResultCard: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: theme.surfaceLight,
     padding: spacing.lg,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  yieldBox: { flex: 1, alignItems: 'center' },
-  yieldValue: { fontSize: 42, fontWeight: '700', color: colors.info },
-  yieldUnit: { ...typography.body, color: colors.textSecondary },
-  verticalDivider: { width: 1, height: '80%', backgroundColor: colors.border, marginHorizontal: spacing.md },
   timeBox: { flex: 1, alignItems: 'center' },
-  timeLabel: { ...typography.caption, color: colors.textSecondary, marginBottom: 4 },
-  timeValue: { ...typography.h3, color: colors.text },
+  timeLabel: { ...typography.caption, color: theme.textSecondary, marginBottom: 4 },
+  timeValue: { ...typography.h3, color: theme.text },
+  stageText: { ...typography.h3, color: theme.info },
+  verticalDivider: { width: 1, height: '80%', backgroundColor: theme.border, marginHorizontal: spacing.md },
+  factorsTitle: { ...typography.body, fontWeight: '600', marginBottom: spacing.sm, color: theme.text },
   
-  scoreRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
-  scoreLabel: { ...typography.bodySmall, marginRight: spacing.sm },
-  scoreBarBg: { flex: 1, height: 8, backgroundColor: colors.surfaceLight, borderRadius: 4, marginRight: spacing.sm, overflow: 'hidden' },
-  scoreBarFill: { height: '100%', backgroundColor: colors.success, borderRadius: 4 },
-  scoreValue: { ...typography.body, fontWeight: '600' },
-
-  factorsTitle: { ...typography.body, fontWeight: '600', marginBottom: spacing.sm },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  modalContent: {
+    backgroundColor: theme.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    maxHeight: '80%',
+    ...shadows.card,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: theme.text,
+  },
+  closeBtn: {
+    padding: spacing.xs,
+  },
+  closeBtnText: {
+    color: theme.textSecondary,
+    fontSize: 18,
+  },
+  cropOption: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  cropOptionText: {
+    ...typography.body,
+    color: theme.text,
+  },
   factorsList: { gap: spacing.sm },
   factorItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
   factorLeft: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
-  factorName: { ...typography.body, color: colors.textSecondary, width: 100 },
+  factorName: { ...typography.body, color: theme.textSecondary, width: 100 },
   factorStatus: { ...typography.caption, textTransform: 'uppercase' },
   factorImpact: { ...typography.body, fontWeight: '600' },
 });

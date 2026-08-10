@@ -2,7 +2,6 @@
  * Farm Help — Helper Utilities
  */
 
-import { colors } from '../theme/theme';
 import { SENSOR_THRESHOLDS, SensorKey } from './constants';
 
 export function getSensorStatus(sensorKey: SensorKey, value: number) {
@@ -22,16 +21,16 @@ export function getSensorStatus(sensorKey: SensorKey, value: number) {
   return 'normal';
 }
 
-export function getStatusColor(status: string) {
+export function getStatusColor(status: string, themeColors: any) {
   switch (status) {
     case 'critical':
-      return colors.danger;
+      return themeColors.danger;
     case 'warning':
-      return colors.warning;
+      return themeColors.warning;
     case 'normal':
-      return colors.success;
+      return themeColors.success;
     default:
-      return colors.textMuted;
+      return themeColors.textMuted;
   }
 }
 

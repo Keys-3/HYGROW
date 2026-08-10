@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { colors, spacing, borderRadius, typography, shadows } from '../theme/theme';
+import { useThemeColors, spacing, borderRadius, typography, shadows } from '../theme/theme';
 
 export default function MarketListingCard({ listing, onPress }) {
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   const firstLetter = listing.title ? listing.title.charAt(0).toUpperCase() : '?';
 
   return (
@@ -31,13 +33,13 @@ export default function MarketListingCard({ listing, onPress }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.surface,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.border,
     marginBottom: spacing.md,
     ...shadows.small,
   },
@@ -47,14 +49,14 @@ const styles = StyleSheet.create({
   },
   imagePlaceholder: {
     height: 120,
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: theme.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   imageText: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: colors.primary + '40',
+    color: theme.primary + '40',
   },
   content: {
     padding: spacing.md,
@@ -63,15 +65,16 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
     marginBottom: 4,
+    color: theme.text,
   },
   price: {
     ...typography.h3,
-    color: colors.primary,
+    color: theme.primary,
     marginBottom: spacing.sm,
   },
   unit: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
   },
   sellerRow: {
     flexDirection: 'row',
@@ -82,10 +85,11 @@ const styles = StyleSheet.create({
   sellerName: {
     ...typography.bodySmall,
     flex: 1,
+    color: theme.text,
   },
   rating: {
     ...typography.caption,
-    color: colors.warning,
+    color: theme.warning,
     fontWeight: '600',
   },
   footerRow: {
@@ -96,15 +100,16 @@ const styles = StyleSheet.create({
   },
   location: {
     ...typography.caption,
+    color: theme.textSecondary,
   },
   stockBadge: {
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: theme.surfaceLight,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: borderRadius.sm,
   },
   stockText: {
     ...typography.caption,
-    color: colors.success,
+    color: theme.success,
   },
 });

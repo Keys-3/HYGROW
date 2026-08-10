@@ -1,51 +1,71 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
+import { GradientText } from '../../../src/components/GradientText';
 
 export default function AIToolsScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.title}>🤖 AI Tools</Text>
+        <GradientText colors={themeColors.gradients.primary} style={styles.title}>
+          🤖 AI Tools
+        </GradientText>
         <Text style={styles.subtitle}>Powered by Hugging Face Models</Text>
       </View>
 
       <Pressable 
-        style={({ pressed }) => [styles.card, styles.diseaseCard, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.cardWrap, pressed && styles.pressed]}
         onPress={() => router.push('/(tabs)/ai/disease')}
       >
-        <View style={styles.cardHeader}>
-          <Text style={styles.emoji}>🍃</Text>
-          <Text style={styles.cardTitle}>Disease Detection</Text>
-        </View>
-        <Text style={styles.cardDesc}>
-          Upload a photo of a plant leaf to automatically detect diseases and get treatment recommendations.
-        </Text>
+        <LinearGradient
+          colors={themeColors.cardGradients.default}
+          style={[styles.card, { borderColor: themeColors.success + '60' }]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.emoji}>🍃</Text>
+            <GradientText colors={['#10B981', '#34D399']} style={styles.cardTitle}>
+              Disease Detection
+            </GradientText>
+          </View>
+          <Text style={styles.cardDesc}>
+            Upload a photo of a plant leaf to automatically detect diseases and get treatment recommendations.
+          </Text>
+        </LinearGradient>
       </Pressable>
 
       <Pressable 
-        style={({ pressed }) => [styles.card, styles.yieldCard, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.cardWrap, pressed && styles.pressed]}
         onPress={() => router.push('/(tabs)/ai/yield')}
       >
-        <View style={styles.cardHeader}>
-          <Text style={styles.emoji}>📈</Text>
-          <Text style={styles.cardTitle}>Yield Prediction</Text>
-        </View>
-        <Text style={styles.cardDesc}>
-          Estimate your crop yield based on current sensor readings and plant growth stage.
-        </Text>
+        <LinearGradient
+          colors={themeColors.cardGradients.default}
+          style={[styles.card, { borderColor: themeColors.info + '60' }]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.emoji}>📈</Text>
+            <GradientText colors={['#A855F7', '#D946EF']} style={styles.cardTitle}>
+              Yield Prediction
+            </GradientText>
+          </View>
+          <Text style={styles.cardDesc}>
+            Estimate your crop yield based on current sensor readings and plant growth stage.
+          </Text>
+        </LinearGradient>
       </Pressable>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.background,
   },
   content: {
     padding: spacing.lg,
@@ -56,25 +76,21 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
+    color: theme.text,
   },
   subtitle: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginTop: 4,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
+  cardWrap: {
     marginBottom: spacing.lg,
-    borderWidth: 1,
     ...shadows.card,
   },
-  diseaseCard: {
-    borderColor: colors.success + '50',
-  },
-  yieldCard: {
-    borderColor: colors.info + '50',
+  card: {
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    borderWidth: 1,
   },
   pressed: {
     opacity: 0.8,
@@ -91,10 +107,11 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.h2,
+    color: theme.text,
   },
   cardDesc: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 22,
   },
 });

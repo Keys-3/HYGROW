@@ -10,7 +10,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+
+import { useThemeColors } from '../src/theme/theme';
+import useAppStore from '../src/store/useAppStore';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -21,6 +25,12 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+
+  const authInitialized = useAppStore((s) => s.authInitialized);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const themeColors = useThemeColors();
+
+  const isDarkMode = useAppStore((s) => s.isDarkMode);
 
   useEffect(() => {
     if (error) throw error;
@@ -37,12 +47,18 @@ export default function RootLayout() {
   }
 
   return (
-    <>
-      <StatusBar style="light" />
+    <View style={StyleSheet.absoluteFill}>
+      <LinearGradient
+        colors={themeColors.globalBackground}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#0F172A' },
+          contentStyle: { backgroundColor: 'transparent' },
           animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right',
         }}
       >
@@ -50,6 +66,6 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
       </Stack>
-    </>
+    </View>
   );
 }

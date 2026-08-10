@@ -1,22 +1,24 @@
 import React from 'react';
 import { View, Text, StyleSheet, Switch } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '../theme/theme';
+import { useThemeColors, spacing, borderRadius, typography } from '../theme/theme';
 
 export default function ActuatorControl({ isOn, autoMode, onToggle, onAutoModeToggle }) {
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   return (
     <View style={styles.card}>
       <View style={styles.row}>
         <View style={styles.info}>
           <Text style={styles.label}>💧 Water Pump</Text>
-          <Text style={[styles.status, { color: isOn ? colors.success : colors.textMuted }]}>
+          <Text style={[styles.status, { color: isOn ? themeColors.success : themeColors.textMuted }]}>
             {isOn ? 'Running' : 'Stopped'}
           </Text>
         </View>
         <Switch
           value={isOn}
           onValueChange={onToggle}
-          trackColor={{ false: colors.surfaceLight, true: colors.primary + '60' }}
-          thumbColor={isOn ? colors.primary : colors.textMuted}
+          trackColor={{ false: themeColors.surfaceLight, true: themeColors.primary + '60' }}
+          thumbColor={isOn ? themeColors.primary : themeColors.textMuted}
           disabled={autoMode}
         />
       </View>
@@ -31,21 +33,21 @@ export default function ActuatorControl({ isOn, autoMode, onToggle, onAutoModeTo
         <Switch
           value={autoMode}
           onValueChange={onAutoModeToggle}
-          trackColor={{ false: colors.surfaceLight, true: colors.info + '60' }}
-          thumbColor={autoMode ? colors.info : colors.textMuted}
+          trackColor={{ false: themeColors.surfaceLight, true: themeColors.info + '60' }}
+          thumbColor={autoMode ? themeColors.info : themeColors.textMuted}
         />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.border,
   },
   row: {
     flexDirection: 'row',
@@ -59,6 +61,7 @@ const styles = StyleSheet.create({
   label: {
     ...typography.body,
     fontWeight: '600',
+    color: theme.text,
   },
   status: {
     ...typography.bodySmall,
@@ -68,10 +71,11 @@ const styles = StyleSheet.create({
   rule: {
     ...typography.caption,
     marginTop: 4,
+    color: theme.textSecondary,
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: theme.border,
     marginVertical: spacing.sm,
   },
 });

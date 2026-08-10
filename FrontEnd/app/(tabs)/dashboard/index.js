@@ -1,5 +1,6 @@
 /**
  * Farm Help — Dashboard Screen
+ * Modern, Professional UI with Light/Dark Mode
  */
 
 import { useMemo } from 'react';
@@ -9,16 +10,19 @@ import {
   StyleSheet,
   Text,
   View,
+  TouchableOpacity,
+  Platform,
+  Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Thermometer, Droplets, FlaskConical, Zap, Waves, Sun, Moon } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+
 import useSensorData from '../../../src/hooks/useSensorData';
 import useAppStore from '../../../src/store/useAppStore';
-import {
-  borderRadius,
-  colors,
-  shadows,
-  spacing,
-  typography,
-} from '../../../src/theme/theme';
+import { useThemeColors, borderRadius, shadows, spacing, typography } from '../../../src/theme/theme';
+import { GradientText } from '../../../src/components/GradientText';
 import {
   SENSOR_CONFIG,
   SENSOR_KEYS,
@@ -29,10 +33,23 @@ import {
   getSensorStatus,
 } from '../../../src/utils/helpers';
 
+const ICON_MAP = {
+  temperature: Thermometer,
+  humidity: Droplets,
+  ph: FlaskConical,
+  ec: Zap,
+  waterLevel: Waves,
+  lightIntensity: Sun,
+};
+
 export default function DashboardScreen() {
-  const { current, loading, error, refresh } = useSensorData();
+  const router = useRouter();
+  const { current, history, loading, error, refresh } = useSensorData();
   const lastUpdated = useAppStore((state) => state.lastUpdated);
   const isDeviceOnline = useAppStore((state) => state.isDeviceOnline);
+  
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const sensorCards = useMemo(() => {
     if (!current) return [];
@@ -42,37 +59,97 @@ export default function DashboardScreen() {
       const value = current[key];
       const status = getSensorStatus(key, value);
 
+      const MOCK_TRENDS = {
+        temperature: { val: '0.2', dir: 'up' },
+        humidity: { val: '1.5', dir: 'down' },
+        ph: { val: '0.1', dir: 'up' },
+        ec: { val: '0.05', dir: 'up' },
+        waterLevel: { val: '2.0', dir: 'down' },
+        lightIntensity: { val: '120', dir: 'up' },
+      };
+
+      let trend = null;
+      let trendDirection = null;
+      
+      if (history && history.length > 1) {
+        const prevValue = history[0][key];
+        if (typeof prevValue === 'number' && typeof value === 'number') {
+          const diff = value - prevValue;
+          if (Math.abs(diff) >= 0.1) {
+            trendDirection = diff > 0 ? 'up' : 'down';
+            trend = Math.abs(diff).toFixed(1);
+          }
+        }
+      } 
+      
+      // If trend is still null (no history or diff is too small), use mock data
+      if (!trend) {
+        const mock = MOCK_TRENDS[key] || { val: '0.1', dir: 'up' };
+        trend = mock.val;
+        trendDirection = mock.dir;
+      }
+
       return {
         key,
         label: config.label,
         value: formatSensorValue(key, value),
         rawValue: value,
         unit: config.unit,
-        icon: config.icon,
         color: config.color,
+        gradient: themeColors.gradients[key] || [config.color, config.color],
         status,
+        trend,
+        trendDirection,
+        IconComponent: ICON_MAP[key] || Thermometer,
       };
     });
-  }, [current]);
+  }, [current, history, themeColors]);
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={refresh} />
+        <RefreshControl 
+          refreshing={loading} 
+          onRefresh={refresh} 
+          tintColor={themeColors.primary}
+          colors={[themeColors.primary]}
+        />
       }
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTextWrap}>
-          <Text style={styles.title}>Farm Dashboard</Text>
+          <GradientText 
+            colors={themeColors.gradients.primary} 
+            style={styles.title}
+          >
+            Farm Dashboard
+          </GradientText>
           <Text style={styles.subtitle}>
-            Real-time hydroponics sensor monitoring
+            Real-time hydroponics monitoring
           </Text>
         </View>
+      </View>
 
+      {/* Banner Image */}
+      <Animated.View entering={FadeInDown.duration(400)} style={styles.bannerContainer}>
+        <Image 
+          source={require('../../../assets/images/banner.png')} 
+          style={styles.bannerImage}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(6, 78, 59, 0.8)']}
+          style={styles.bannerOverlay}
+        >
+          <Text style={styles.bannerTitle}>Optimal Growth</Text>
+          <Text style={styles.bannerSubtitle}>Powered by AI & IoT</Text>
+        </LinearGradient>
+      </Animated.View>
+
+      <View style={styles.statusRow}>
         <View
           style={[
             styles.statusBadge,
@@ -91,181 +168,197 @@ export default function DashboardScreen() {
               isDeviceOnline ? styles.onlineText : styles.offlineText,
             ]}
           >
-            {isDeviceOnline ? 'Online' : 'Offline'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Device Overview */}
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Device Overview</Text>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Last app update</Text>
-          <Text style={styles.infoValue}>
-            {lastUpdated
-              ? new Date(lastUpdated).toLocaleString()
-              : 'Not available'}
-          </Text>
-        </View>
-
-        <View style={styles.infoDivider} />
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Last sensor reading</Text>
-          <Text style={styles.infoValue}>
-            {current?.lastSensorTimestamp
-              ? new Date(current.lastSensorTimestamp).toLocaleString()
-              : 'Not available'}
-          </Text>
-        </View>
-
-        <View style={styles.infoDivider} />
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Device ID</Text>
-          <Text style={styles.infoValue}>
-            {current?.deviceId || 'Unknown device'}
+            {isDeviceOnline ? 'System Online' : 'System Offline'}
           </Text>
         </View>
       </View>
 
       {/* Error */}
       {error ? (
-        <View style={styles.errorCard}>
+        <Animated.View entering={FadeInDown.duration(400)} style={styles.errorCard}>
           <Text style={styles.errorTitle}>Sensor Error</Text>
           <Text style={styles.errorText}>{error}</Text>
-        </View>
+        </Animated.View>
       ) : null}
 
       {/* Loading */}
       {!current && loading ? (
-        <View style={styles.placeholderCard}>
+        <Animated.View entering={FadeInDown.duration(400)} style={styles.placeholderCard}>
           <Text style={styles.placeholderTitle}>Loading sensor data...</Text>
           <Text style={styles.placeholderText}>
-            Waiting for the latest reading from Firestore.
+            Syncing the latest real-time data from Firestore.
           </Text>
-        </View>
+        </Animated.View>
       ) : null}
 
       {/* Empty */}
       {!current && !loading && !error ? (
-        <View style={styles.placeholderCard}>
+        <Animated.View entering={FadeInDown.duration(400)} style={styles.placeholderCard}>
           <Text style={styles.placeholderTitle}>No sensor data yet</Text>
           <Text style={styles.placeholderText}>
-            Sensor readings will appear here once your ESP32 writes to Firestore.
+            Sensor readings will appear here once your ESP32 starts transmitting.
           </Text>
-        </View>
+        </Animated.View>
       ) : null}
 
       {/* Sensor cards */}
       {current ? (
         <>
-          <Text style={styles.sectionTitle}>Live Sensor Readings</Text>
-
           <View style={styles.cardsGrid}>
-            {sensorCards.map((sensor) => {
+            {sensorCards.map((sensor, index) => {
               const threshold = SENSOR_THRESHOLDS[sensor.key];
-              const statusStyle = getStatusStyles(sensor.status);
+              const statusStyle = getStatusStyles(sensor.status, themeColors);
+              const Icon = sensor.IconComponent;
 
               return (
-                <View key={sensor.key} style={styles.sensorCard}>
-                  <View
-                    style={[
-                      styles.sensorAccent,
-                      { backgroundColor: sensor.color },
-                    ]}
-                  />
-
-                  <View style={styles.cardTop}>
-                    <View style={styles.iconWrap}>
-                      <Text style={styles.sensorIcon}>{sensor.icon}</Text>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.sensorStatusPill,
-                        { backgroundColor: statusStyle.bg },
-                      ]}
+                <Animated.View 
+                  key={sensor.key} 
+                  entering={FadeInDown.delay(index * 100).duration(500)}
+                  style={styles.sensorCardWrap}
+                >
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => router.push({ pathname: '/dashboard/[sensorId]', params: { sensorId: sensor.key } })}
+                    style={{ flex: 1 }}
+                  >
+                    <LinearGradient
+                      colors={themeColors.cardGradients.default}
+                      style={[styles.sensorCard, { borderColor: sensor.color + '40', borderWidth: 1 }]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
                     >
-                      <Text
-                        style={[
-                          styles.sensorStatusText,
-                          { color: statusStyle.text },
-                        ]}
+                      {/* Massive Watermark Icon */}
+                      <View style={styles.watermarkContainer}>
+                        <Icon color={sensor.color} size={110} opacity={0.06} style={{ transform: [{ rotate: '-15deg' }] }} />
+                      </View>
+
+                      <LinearGradient
+                        colors={sensor.gradient}
+                        style={styles.sensorAccent}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                      />
+
+                      <View style={styles.cardTop}>
+                        <View style={[styles.iconWrap, { backgroundColor: sensor.color + '15' }]}>
+                          <Icon color={sensor.color} size={22} />
+                        </View>
+
+                        <View
+                          style={[
+                            styles.sensorStatusPill,
+                            { backgroundColor: statusStyle.bg },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.sensorStatusText,
+                              { color: statusStyle.text },
+                            ]}
+                          >
+                            {statusStyle.label}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={[styles.sensorLabel, { color: sensor.color }]}>{sensor.label}</Text>
+
+                      <Text 
+                        style={[styles.sensorValue, { color: sensor.color }]}
                       >
-                        {statusStyle.label}
+                        {sensor.value}
                       </Text>
-                    </View>
-                  </View>
+                      {sensor.unit ? (
+                        <Text style={[styles.sensorUnit, { color: sensor.color, opacity: 0.8 }]}>{sensor.unit}</Text>
+                      ) : null}
 
-                  <Text style={styles.sensorLabel}>{sensor.label}</Text>
+                      <Text style={[styles.sensorRange, { color: sensor.color, opacity: 0.7 }]}>
+                        Ideal: {threshold.min}–{threshold.max} {threshold.unit}
+                      </Text>
 
-                  <Text style={[styles.sensorValue, { color: sensor.color }]}>
-                    {sensor.value}
-                    {sensor.unit ? (
-                      <Text style={styles.sensorUnit}> {sensor.unit}</Text>
-                    ) : null}
-                  </Text>
-
-                  <Text style={styles.sensorRange}>
-                    Ideal: {threshold.min}–{threshold.max} {threshold.unit}
-                  </Text>
-                </View>
+                      {sensor.trend ? (
+                        <View style={[styles.trendContainer, { backgroundColor: sensor.color + '15' }]}>
+                          <Text style={[styles.trendIcon, { color: sensor.color }]}>
+                            {sensor.trendDirection === 'up' ? '↗ ' : sensor.trendDirection === 'down' ? '↘ ' : '→ '}
+                          </Text>
+                          <Text style={[styles.trendText, { color: sensor.color }]}>
+                            {sensor.trend} {sensor.unit || ''}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
               );
             })}
           </View>
 
-          {/* System Controls */}
-          <View style={styles.controlsCard}>
-            <Text style={styles.controlsTitle}>System Controls</Text>
+          {/* System Controls & Overview */}
+          <Animated.View entering={FadeInDown.delay(600).duration(500)}>
+            <LinearGradient 
+              colors={themeColors.cardGradients.default}
+              style={[styles.controlsCard, { borderColor: themeColors.primary + '40', borderWidth: 1 }]}
+            >
+              <Text style={styles.controlsTitle}>System Status</Text>
 
-            <View style={styles.controlRow}>
-              <Text style={styles.controlLabel}>Pump Status</Text>
-              <View
-                style={[
-                  styles.controlBadge,
-                  current.pumpStatus
-                    ? styles.controlBadgeOn
-                    : styles.controlBadgeOff,
-                ]}
-              >
-                <Text
+              <View style={styles.controlRow}>
+                <Text style={styles.controlLabel}>Pump Status</Text>
+                <View
                   style={[
-                    styles.controlBadgeText,
+                    styles.controlBadge,
                     current.pumpStatus
-                      ? styles.controlBadgeTextOn
-                      : styles.controlBadgeTextOff,
+                      ? styles.controlBadgeOn
+                      : styles.controlBadgeOff,
                   ]}
                 >
-                  {current.pumpStatus ? 'ON' : 'OFF'}
-                </Text>
+                  <Text
+                    style={[
+                      styles.controlBadgeText,
+                      current.pumpStatus
+                        ? styles.controlBadgeTextOn
+                        : styles.controlBadgeTextOff,
+                    ]}
+                  >
+                    {current.pumpStatus ? 'ACTIVE' : 'IDLE'}
+                  </Text>
+                </View>
               </View>
-            </View>
-
-            <View style={styles.controlRow}>
-              <Text style={styles.controlLabel}>Auto Mode</Text>
-              <View
-                style={[
-                  styles.controlBadge,
-                  current.autoMode
-                    ? styles.controlBadgeOn
-                    : styles.controlBadgeOff,
-                ]}
-              >
-                <Text
+              <View style={styles.infoDivider} />
+              
+              <View style={styles.controlRow}>
+                <Text style={styles.controlLabel}>Automation</Text>
+                <View
                   style={[
-                    styles.controlBadgeText,
+                    styles.controlBadge,
                     current.autoMode
-                      ? styles.controlBadgeTextOn
-                      : styles.controlBadgeTextOff,
+                      ? styles.controlBadgeOn
+                      : styles.controlBadgeOff,
                   ]}
                 >
-                  {current.autoMode ? 'Enabled' : 'Disabled'}
+                  <Text
+                    style={[
+                      styles.controlBadgeText,
+                      current.autoMode
+                        ? styles.controlBadgeTextOn
+                        : styles.controlBadgeTextOff,
+                    ]}
+                  >
+                    {current.autoMode ? 'ENABLED' : 'MANUAL'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.infoDivider} />
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Last reading</Text>
+                <Text style={styles.infoValue}>
+                  {current?.lastSensorTimestamp
+                    ? new Date(current.lastSensorTimestamp).toLocaleTimeString()
+                    : 'N/A'}
                 </Text>
               </View>
-            </View>
-          </View>
+            </LinearGradient>
+          </Animated.View>
         </>
       ) : null}
     </ScrollView>
@@ -274,201 +367,178 @@ export default function DashboardScreen() {
 
 /* ---------------------- local helpers ---------------------- */
 
-function getStatusStyles(status) {
+function getStatusStyles(status, themeColors) {
   switch (status) {
     case 'critical':
       return {
         label: 'Critical',
-        bg: colors.dangerLight || '#FEE2E2',
-        text: colors.danger || '#DC2626',
+        bg: themeColors.dangerLight,
+        text: themeColors.dangerDark,
       };
-
     case 'warning':
       return {
         label: 'Warning',
-        bg: colors.warningLight || '#FEF3C7',
-        text: colors.warning || '#D97706',
+        bg: themeColors.warningLight,
+        text: themeColors.warningDark,
       };
-
     case 'normal':
       return {
-        label: 'Normal',
-        bg: colors.successLight || '#DCFCE7',
-        text: colors.success || '#16A34A',
+        label: 'Optimal',
+        bg: themeColors.successLight,
+        text: themeColors.successDark,
       };
-
     default:
       return {
         label: 'Unknown',
-        bg: colors.surfaceMuted || '#E5E7EB',
-        text: colors.textMuted || '#6B7280',
+        bg: themeColors.surfaceMuted,
+        text: themeColors.textMuted,
       };
   }
 }
 
 /* ---------------------- styles ---------------------- */
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background || '#F4F7FB',
+    backgroundColor: theme.background,
   },
   content: {
-    padding: spacing.lg || 16,
-    paddingBottom: spacing.xl || 32,
+    padding: spacing.lg,
+    paddingTop: Platform.OS === 'ios' ? spacing.xxl : spacing.xl,
+    paddingBottom: spacing.xxl,
   },
 
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.lg || 16,
-    gap: spacing.md || 12,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   headerTextWrap: {
     flex: 1,
   },
   title: {
-    fontSize: typography?.fontSize?.['3xl'] || 28,
-    fontWeight: typography?.fontWeight?.bold || '800',
-    color: colors.text || '#0F172A',
+    ...typography.h1,
+    color: theme.text,
   },
   subtitle: {
-    marginTop: spacing.xs || 4,
-    fontSize: typography?.fontSize?.sm || 14,
-    color: colors.textMuted || '#64748B',
+    ...typography.bodySmall,
+    color: theme.textSecondary,
+    marginTop: 2,
   },
-
+  
+  bannerContainer: {
+    width: '100%',
+    height: 140,
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
+    marginBottom: spacing.xl,
+    ...shadows.sm,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  bannerOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.md,
+    justifyContent: 'flex-end',
+  },
+  bannerTitle: {
+    ...typography.h3,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  bannerSubtitle: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  
+  statusRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.xl,
+  },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: borderRadius.full || 999,
-    paddingHorizontal: spacing.md || 12,
-    paddingVertical: spacing.sm || 8,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   onlineBadge: {
-    backgroundColor: colors.successLight || '#DCFCE7',
+    backgroundColor: theme.successLight,
   },
   offlineBadge: {
-    backgroundColor: colors.dangerLight || '#FEE2E2',
+    backgroundColor: theme.dangerLight,
   },
   statusDot: {
     width: 8,
     height: 8,
-    borderRadius: 999,
-    marginRight: spacing.sm || 8,
+    borderRadius: 4,
+    marginRight: spacing.sm,
   },
   onlineDot: {
-    backgroundColor: colors.success || '#16A34A',
+    backgroundColor: theme.success,
   },
   offlineDot: {
-    backgroundColor: colors.danger || '#DC2626',
+    backgroundColor: theme.danger,
   },
   statusText: {
-    fontSize: typography?.fontSize?.xs || 12,
-    fontWeight: typography?.fontWeight?.bold || '700',
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   onlineText: {
-    color: colors.successDark || colors.success || '#166534',
+    color: theme.successDark,
   },
   offlineText: {
-    color: colors.dangerDark || colors.danger || '#991B1B',
-  },
-
-  sectionTitle: {
-    marginTop: spacing.sm || 8,
-    marginBottom: spacing.md || 12,
-    fontSize: typography?.fontSize?.lg || 18,
-    fontWeight: typography?.fontWeight?.bold || '800',
-    color: colors.text || '#0F172A',
-  },
-
-  infoCard: {
-    backgroundColor: colors.card || colors.surface || '#FFFFFF',
-    borderRadius: borderRadius.xl || 20,
-    padding: spacing.lg || 16,
-    marginBottom: spacing.lg || 16,
-    ...(shadows?.md || {
-      shadowColor: '#000',
-      shadowOpacity: 0.06,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
-    }),
-  },
-  infoTitle: {
-    fontSize: typography?.fontSize?.md || 16,
-    fontWeight: typography?.fontWeight?.bold || '800',
-    color: colors.text || '#111827',
-    marginBottom: spacing.md || 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md || 12,
-    paddingVertical: 2,
-  },
-  infoLabel: {
-    flex: 1,
-    fontSize: typography?.fontSize?.sm || 14,
-    color: colors.textMuted || '#64748B',
-  },
-  infoValue: {
-    flex: 1.3,
-    fontSize: typography?.fontSize?.sm || 14,
-    fontWeight: typography?.fontWeight?.semibold || '600',
-    color: colors.text || '#1E293B',
-    textAlign: 'right',
-  },
-  infoDivider: {
-    height: 1,
-    backgroundColor: colors.border || '#E5E7EB',
-    marginVertical: spacing.sm || 8,
+    color: theme.dangerDark,
   },
 
   errorCard: {
-    backgroundColor: colors.dangerLight || '#FEF2F2',
+    backgroundColor: theme.dangerLight,
     borderWidth: 1,
-    borderColor: colors.dangerBorder || '#FECACA',
-    borderRadius: borderRadius.xl || 18,
-    padding: spacing.lg || 16,
-    marginBottom: spacing.lg || 16,
+    borderColor: theme.dangerBorder,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   errorTitle: {
-    fontSize: typography?.fontSize?.md || 16,
-    fontWeight: typography?.fontWeight?.bold || '800',
-    color: colors.danger || '#B91C1C',
-    marginBottom: spacing.xs || 4,
+    ...typography.h3,
+    color: theme.dangerDark,
+    marginBottom: spacing.xs,
   },
   errorText: {
-    fontSize: typography?.fontSize?.sm || 14,
-    color: colors.danger || '#B91C1C',
+    ...typography.bodySmall,
+    color: theme.dangerDark,
     lineHeight: 20,
   },
 
   placeholderCard: {
-    backgroundColor: colors.card || colors.surface || '#FFFFFF',
-    borderRadius: borderRadius.xl || 18,
-    padding: spacing.xl || 22,
-    marginBottom: spacing.lg || 16,
+    backgroundColor: theme.card,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
     alignItems: 'center',
-    ...(shadows?.sm || {
-      shadowColor: '#000',
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 2,
-    }),
+    ...shadows.sm,
   },
   placeholderTitle: {
-    fontSize: typography?.fontSize?.md || 16,
-    fontWeight: typography?.fontWeight?.bold || '800',
-    color: colors.text || '#111827',
-    marginBottom: spacing.sm || 8,
+    ...typography.h3,
+    color: theme.text,
+    marginBottom: spacing.sm,
   },
   placeholderText: {
-    fontSize: typography?.fontSize?.sm || 14,
-    color: colors.textMuted || '#64748B',
+    ...typography.bodySmall,
+    color: theme.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -478,126 +548,157 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  sensorCard: {
+  sensorCardWrap: {
     width: '48%',
-    backgroundColor: colors.card || colors.surface || '#FFFFFF',
-    borderRadius: borderRadius.xl || 20,
-    padding: spacing.lg || 16,
-    marginBottom: spacing.md || 12,
+    marginBottom: spacing.md,
+  },
+  sensorCard: {
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
     overflow: 'hidden',
-    ...(shadows?.md || {
-      shadowColor: '#000',
-      shadowOpacity: 0.05,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
-    }),
+    ...shadows.card,
+    flex: 1,
+    position: 'relative',
+  },
+  watermarkContainer: {
+    position: 'absolute',
+    bottom: -15,
+    right: -20,
+    zIndex: -1,
   },
   sensorAccent: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 4,
+    height: 6,
   },
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginTop: spacing.xs,
   },
   iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: borderRadius.lg || 14,
-    backgroundColor: colors.surfaceMuted || '#F1F5F9',
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sensorIcon: {
-    fontSize: 22,
-  },
   sensorStatusPill: {
-    paddingHorizontal: spacing.sm || 8,
-    paddingVertical: 5,
-    borderRadius: borderRadius.full || 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
   },
   sensorStatusText: {
-    fontSize: typography?.fontSize?.xs || 12,
-    fontWeight: typography?.fontWeight?.bold || '800',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
   },
   sensorLabel: {
-    marginTop: spacing.md || 12,
-    fontSize: typography?.fontSize?.sm || 14,
-    color: colors.textMuted || '#64748B',
-    fontWeight: typography?.fontWeight?.medium || '600',
+    marginTop: spacing.lg,
+    ...typography.bodySmall,
+    color: theme.textSecondary,
+    fontWeight: '600',
   },
   sensorValue: {
-    marginTop: spacing.sm || 8,
-    fontSize: typography?.fontSize?.['2xl'] || 28,
-    fontWeight: typography?.fontWeight?.bold || '800',
-    color: colors.text || '#111827',
+    marginTop: spacing.xs,
+    fontSize: typography.value.fontSize,
+    fontWeight: typography.value.fontWeight,
+    color: theme.text,
   },
   sensorUnit: {
-    fontSize: typography?.fontSize?.sm || 14,
-    fontWeight: typography?.fontWeight?.medium || '600',
-    color: colors.textMuted || '#64748B',
+    fontSize: typography.unit.fontSize,
+    fontWeight: typography.unit.fontWeight,
+    color: theme.textMuted,
   },
   sensorRange: {
-    marginTop: spacing.sm || 8,
-    fontSize: typography?.fontSize?.xs || 12,
-    color: colors.textMuted || '#94A3B8',
-    lineHeight: 16,
+    marginTop: spacing.xs,
+    fontSize: 11,
+    color: theme.textMuted,
+    fontWeight: '500',
+  },
+  trendContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: borderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  trendIcon: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  trendText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   controlsCard: {
-    backgroundColor: colors.card || colors.surface || '#FFFFFF',
-    borderRadius: borderRadius.xl || 20,
-    padding: spacing.lg || 16,
-    marginTop: spacing.xs || 4,
-    ...(shadows?.md || {
-      shadowColor: '#000',
-      shadowOpacity: 0.05,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
-    }),
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginTop: spacing.sm,
+    ...shadows.card,
   },
   controlsTitle: {
-    fontSize: typography?.fontSize?.md || 16,
-    fontWeight: typography?.fontWeight?.bold || '800',
-    color: colors.text || '#111827',
-    marginBottom: spacing.md || 12,
+    ...typography.h3,
+    color: theme.text,
+    marginBottom: spacing.md,
   },
   controlRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm || 8,
+    paddingVertical: spacing.sm,
   },
   controlLabel: {
-    fontSize: typography?.fontSize?.sm || 14,
-    color: colors.text || '#334155',
-    fontWeight: typography?.fontWeight?.medium || '600',
+    ...typography.body,
+    fontWeight: '600',
+    color: theme.text,
   },
   controlBadge: {
-    paddingHorizontal: spacing.md || 12,
-    paddingVertical: spacing.xs || 6,
-    borderRadius: borderRadius.full || 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
   },
   controlBadgeOn: {
-    backgroundColor: colors.successLight || '#DCFCE7',
+    backgroundColor: theme.successLight,
   },
   controlBadgeOff: {
-    backgroundColor: colors.surfaceMuted || '#E5E7EB',
+    backgroundColor: theme.surfaceMuted,
   },
   controlBadgeText: {
-    fontSize: typography?.fontSize?.xs || 12,
-    fontWeight: typography?.fontWeight?.bold || '800',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   controlBadgeTextOn: {
-    color: colors.successDark || colors.success || '#166534',
+    color: theme.successDark,
   },
   controlBadgeTextOff: {
-    color: colors.textMuted || '#4B5563',
+    color: theme.textMuted,
+  },
+
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+  },
+  infoLabel: {
+    ...typography.bodySmall,
+    color: theme.textSecondary,
+  },
+  infoValue: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  infoDivider: {
+    height: 1,
+    backgroundColor: theme.border,
+    marginVertical: spacing.xs,
   },
 });

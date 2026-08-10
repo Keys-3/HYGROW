@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { colors, spacing, borderRadius, shadows, typography } from '../theme/theme';
+import { useThemeColors, spacing, borderRadius, shadows, typography } from '../theme/theme';
 import { getSensorStatus, getStatusColor, getStatusLabel } from '../utils/helpers';
 
 export default function SensorCard({ sensorKey, value, unit, label, icon, color, gradient, onPress, sparklineData }) {
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   const status = getSensorStatus(sensorKey, value);
-  const statusColor = getStatusColor(status);
+  const statusColor = getStatusColor(status, themeColors);
   
   const emoji = sensorKey === 'temperature' ? '🌡️' :
                 sensorKey === 'humidity' ? '💧' :
@@ -60,9 +62,9 @@ export default function SensorCard({ sensorKey, value, unit, label, icon, color,
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 1,

@@ -9,9 +9,10 @@ import {
   Warehouse,
 } from 'lucide-react-native';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
 
 import useAppStore from '../store/useAppStore';
-import { colors } from '../theme/theme';
+import { useThemeColors } from '../theme/theme';
 
 const getNavItems = (role: string) => [
   { name: 'Dashboard', icon: House, href: '/dashboard', roles: ['farmer', 'admin'] },
@@ -26,6 +27,8 @@ const getNavItems = (role: string) => [
 export function Sidebar() {
   const pathname = usePathname();
   const user = useAppStore(state => state.user);
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   if (!user) {
     return null;
@@ -58,26 +61,26 @@ export function Sidebar() {
 
           return (
             <Link
-  key={item.name}
-  href={item.href as any}
-  style={[
-    styles.navItem,
-    isActive && styles.navItemActive,
-  ]}
->
-  <Icon
-    size={20}
-    color={isActive ? colors.primary : colors.textMuted}
-  />
-  <Text
-    style={[
-      styles.navText,
-      isActive && styles.navTextActive,
-    ]}
-  >
-    {item.name}
-  </Text>
-</Link>
+              key={item.name}
+              href={item.href as any}
+              style={[
+                styles.navItem,
+                isActive && styles.navItemActive,
+              ]}
+            >
+              <Icon
+                size={20}
+                color={isActive ? themeColors.primary : themeColors.textMuted}
+              />
+              <Text
+                style={[
+                  styles.navText,
+                  isActive && styles.navTextActive,
+                ]}
+              >
+                {item.name}
+              </Text>
+            </Link>
           );
         })}
       </View>
@@ -85,11 +88,11 @@ export function Sidebar() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     width: 240,
     height: '100%',
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderRightWidth: 1,
     borderRightColor: colors.border,
     padding: 20,
@@ -133,7 +136,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   navItemActive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: colors.primary + '20',
   },
   navText: {
     fontSize: 16,

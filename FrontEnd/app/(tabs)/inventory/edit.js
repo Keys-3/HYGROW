@@ -385,6 +385,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h1,
     marginBottom: spacing.lg,
+    color: colors.text,
   },
   errorContainer: {
     backgroundColor: colors.danger + '20',
@@ -402,6 +403,7 @@ const styles = StyleSheet.create({
   label: {
     ...typography.label,
     marginBottom: spacing.sm,
+    color: colors.text,
   },
   input: {
     backgroundColor: colors.surface,
@@ -482,6 +484,7 @@ const styles = StyleSheet.create({
   marketSectionTitle: {
     ...typography.h3,
     marginBottom: spacing.md,
+    color: colors.text,
   },
   listBtn: {
     backgroundColor: colors.info,

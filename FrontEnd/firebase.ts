@@ -1,13 +1,15 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   Auth,
   browserLocalPersistence,
-  getAuth,
-  setPersistence
+  initializeAuth,
+  getReactNativePersistence,
+  getAuth
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAsW3UdiapN41zCfAd5Wi_kQNzLzojeORk",
@@ -19,21 +21,23 @@ const firebaseConfig = {
   measurementId: "G-45ERXPGKTZ"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize auth with proper persistence
-const auth: Auth = getAuth(app);
-
-// Set persistence based on platform
-if (Platform.OS === "web") {
-  // Web: Use browser local persistence (survives browser restart)
-  setPersistence(auth, browserLocalPersistence).catch((err) => {
-    console.warn("Failed to set auth persistence:", err);
-  });
+let auth: Auth;
+try {
+  if (Platform.OS === "web") {
+    auth = initializeAuth(app, {
+      persistence: browserLocalPersistence
+    });
+  } else {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+  }
+} catch (error: any) {
+  // During fast refresh, auth might already be initialized
+  auth = getAuth(app);
 }
-// For React Native, Firebase uses inMemoryPersistence by default,
-// but the SDK v12+ has built-in support for AsyncStorage persistence
-// which is automatically enabled when using getAuth()
 
 export { auth };
 export const db = getFirestore(app);

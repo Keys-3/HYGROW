@@ -15,6 +15,9 @@ export interface User {
   pincode?: string;
   farm_name?: string;
   farm_location?: string;
+  farm_size?: string;
+  crops?: string;
+  experience?: string;
   created_at?: string;
 }
 

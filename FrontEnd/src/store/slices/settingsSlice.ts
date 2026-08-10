@@ -6,6 +6,6 @@ export interface SettingsSlice {
 }
 
 export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
-  isDarkMode: true,
+  isDarkMode: true, // Default to dark mode as it's the premium theme
   toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
 });

@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '../theme/theme';
+import { useThemeColors, spacing, borderRadius, typography } from '../theme/theme';
 
 export default function AlertBanner({ alerts, onDismiss }) {
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   const slideAnim = useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
@@ -25,9 +27,9 @@ export default function AlertBanner({ alerts, onDismiss }) {
 
   const topAlert = alerts[0];
   const isCritical = topAlert.type === 'critical';
-  const bgColor = isCritical ? colors.danger + '20' : colors.warning + '20';
-  const borderColor = isCritical ? colors.danger + '80' : colors.warning + '80';
-  const textColor = isCritical ? colors.danger : colors.warning;
+  const bgColor = isCritical ? themeColors.danger + '20' : themeColors.warning + '20';
+  const borderColor = isCritical ? themeColors.danger + '80' : themeColors.warning + '80';
+  const textColor = isCritical ? themeColors.danger : themeColors.warning;
 
   return (
     <Animated.View style={{ transform: [{ translateY: slideAnim }] }}>
@@ -49,7 +51,7 @@ export default function AlertBanner({ alerts, onDismiss }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -71,13 +73,13 @@ const styles = StyleSheet.create({
   },
   message: {
     ...typography.bodySmall,
-    color: colors.text,
+    color: theme.text,
   },
   closeBtn: {
     padding: spacing.xs,
   },
   closeText: {
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     fontSize: 16,
   },
 });
