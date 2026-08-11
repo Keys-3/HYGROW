@@ -1,4 +1,4 @@
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
+import { BACKEND_URL } from '../utils/apiConfig';
 
 export async function predictGrowth(data) {
 

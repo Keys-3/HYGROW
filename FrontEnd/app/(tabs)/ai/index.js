@@ -4,11 +4,13 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
 import { GradientText } from '../../../src/components/GradientText';
+import useAppStore from '../../../src/store/useAppStore';
 
 export default function AIToolsScreen() {
   const router = useRouter();
   const themeColors = useThemeColors();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const farmerFeatures = useAppStore((state) => state.farmerFeatures);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -19,30 +21,33 @@ export default function AIToolsScreen() {
         <Text style={styles.subtitle}>Powered by Hugging Face Models</Text>
       </View>
 
-      <Pressable 
-        style={({ pressed }) => [styles.cardWrap, pressed && styles.pressed]}
-        onPress={() => router.push('/(tabs)/ai/disease')}
-      >
-        <LinearGradient
-          colors={themeColors.cardGradients.default}
-          style={[styles.card, { borderColor: themeColors.success + '60' }]}
+      {farmerFeatures?.aiTools?.diseaseDetection !== false && (
+        <Pressable 
+          style={({ pressed }) => [styles.cardWrap, pressed && styles.pressed]}
+          onPress={() => router.push('/(tabs)/ai/disease')}
         >
-          <View style={styles.cardHeader}>
-            <Text style={styles.emoji}>🍃</Text>
-            <GradientText colors={['#10B981', '#34D399']} style={styles.cardTitle}>
-              Disease Detection
-            </GradientText>
-          </View>
-          <Text style={styles.cardDesc}>
-            Upload a photo of a plant leaf to automatically detect diseases and get treatment recommendations.
-          </Text>
-        </LinearGradient>
-      </Pressable>
+          <LinearGradient
+            colors={themeColors.cardGradients.default}
+            style={[styles.card, { borderColor: themeColors.success + '60' }]}
+          >
+            <View style={styles.cardHeader}>
+              <Text style={styles.emoji}>🍃</Text>
+              <GradientText colors={['#10B981', '#34D399']} style={styles.cardTitle}>
+                Disease Detection
+              </GradientText>
+            </View>
+            <Text style={styles.cardDesc}>
+              Upload a photo of a plant leaf to automatically detect diseases and get treatment recommendations.
+            </Text>
+          </LinearGradient>
+        </Pressable>
+      )}
 
-      <Pressable 
-        style={({ pressed }) => [styles.cardWrap, pressed && styles.pressed]}
-        onPress={() => router.push('/(tabs)/ai/yield')}
-      >
+      {farmerFeatures?.aiTools?.yieldPrediction !== false && (
+        <Pressable
+          style={({ pressed }) => [styles.cardWrap, pressed && styles.pressed]}
+          onPress={() => router.push('/(tabs)/ai/yield')}
+        >
         <LinearGradient
           colors={themeColors.cardGradients.default}
           style={[styles.card, { borderColor: themeColors.info + '60' }]}
@@ -58,6 +63,7 @@ export default function AIToolsScreen() {
           </Text>
         </LinearGradient>
       </Pressable>
+      )}
     </ScrollView>
   );
 }

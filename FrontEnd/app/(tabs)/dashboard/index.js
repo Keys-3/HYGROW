@@ -47,6 +47,7 @@ export default function DashboardScreen() {
   const { current, history, loading, error, refresh } = useSensorData();
   const lastUpdated = useAppStore((state) => state.lastUpdated);
   const isDeviceOnline = useAppStore((state) => state.isDeviceOnline);
+  const farmerFeatures = useAppStore((state) => state.farmerFeatures);
   
   const themeColors = useThemeColors();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
@@ -54,7 +55,7 @@ export default function DashboardScreen() {
   const sensorCards = useMemo(() => {
     if (!current) return [];
 
-    return SENSOR_KEYS.map((key) => {
+    return SENSOR_KEYS.filter(key => farmerFeatures?.sensors?.[key] !== false).map((key) => {
       const config = SENSOR_CONFIG[key];
       const value = current[key];
       const status = getSensorStatus(key, value);
@@ -554,7 +555,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   sensorCard: {
     borderRadius: borderRadius.xl,
-    padding: spacing.lg,
+    padding: spacing.md,
     overflow: 'hidden',
     ...shadows.card,
     flex: 1,

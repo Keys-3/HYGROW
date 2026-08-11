@@ -1,7 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Image, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, onSnapshot } from 'firebase/firestore';
+import Constants from 'expo-constants';
+
+let RazorpayCheckout;
+let loadRazorpayScript = () => Promise.resolve(false);
+
+if (Platform.OS !== 'web') {
+  try {
+    RazorpayCheckout = require('react-native-razorpay').default;
+  } catch (e) {
+    console.warn("Razorpay not linked yet. Rebuild required.");
+  }
+} else {
+  loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined') return resolve(false);
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+}
+
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import { useThemeColors, spacing, borderRadius, typography } from '../../../src/theme/theme';
 import { formatDate, getDefaultImage } from '../../../src/utils/helpers';
@@ -22,6 +47,11 @@ export default function ListingDetailScreen() {
   const { createOrder } = useOrders();
 
   const [isBuyModalVisible, setIsBuyModalVisible] = useState(false);
+  const [isUtrModalVisible, setIsUtrModalVisible] = useState(false);
+  const [utrNumber, setUtrNumber] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [farmerUpiId, setFarmerUpiId] = useState(null);
+  const [loadingUpi, setLoadingUpi] = useState(false);
   const [buyQuantity, setBuyQuantity] = useState(1);
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -109,15 +139,18 @@ export default function ListingDetailScreen() {
   }
 
   const handleContact = () => {
-    setCustomAlert({
-      visible: true,
-      title: 'Contact Seller',
-      message: `Message sent to ${listing.seller.name}!`,
-      buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
+    router.push({
+      pathname: '/(tabs)/market/contact',
+      params: { 
+        listingId: listing.id,
+        farmerId: listing.farmer_id,
+        listingTitle: listing.title,
+        farmerName: listing.seller.name
+      }
     });
   };
 
-  const handlePlaceOrder = async () => {
+  const handleInitiateOrder = async () => {
     if (!address.trim() || !city.trim() || !stateVal.trim() || !pincode.trim()) {
       setCustomAlert({
         visible: true,
@@ -128,6 +161,136 @@ export default function ListingDetailScreen() {
       return;
     }
 
+    if (paymentMethod === 'UPI') {
+      if (Platform.OS !== 'web' && !RazorpayCheckout) {
+        setCustomAlert({
+           visible: true, title: 'Rebuild Required', message: 'Please rebuild the app (npx expo run:android) to use online payments. Use COD for now.',
+           buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
+        });
+        return;
+      }
+      
+      const amount = (listing.price * buyQuantity).toFixed(2);
+      
+      try {
+        setPlacingOrder(true);
+        const hostUrl = Constants?.expoConfig?.hostUri 
+          ? Constants.expoConfig.hostUri.split(`:`)[0] 
+          : '10.0.2.2'; // default android emulator alias to localhost
+        
+        const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL 
+          ? `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/payment`
+          : `http://${hostUrl}:3000/api/payment`;
+
+        // 1. Create order on backend
+        const orderRes = await fetch(`${backendUrl}/create-order`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: parseFloat(amount),
+            currency: 'INR',
+            receipt: `rcpt_${listing.id}_${Date.now()}`
+          })
+        });
+        const orderData = await orderRes.json();
+        
+        if (!orderData.success) {
+          throw new Error(orderData.message || 'Failed to initialize payment gateway.');
+        }
+
+        const options = {
+          description: `Payment for ${listing.title}`,
+          image: imageUrl || 'https://via.placeholder.com/150',
+          currency: 'INR',
+          key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mock_key',
+          amount: orderData.order.amount,
+          name: 'HYGROW Marketplace',
+          order_id: orderData.order.id,
+          theme: { color: themeColors.primary }
+        };
+
+        if (Platform.OS === 'web') {
+          // 2a. Open Razorpay Gateway (Web)
+          const isLoaded = await loadRazorpayScript();
+          if (!isLoaded) {
+            throw new Error('Razorpay SDK failed to load. Please check your internet connection.');
+          }
+
+          options.handler = async function (response) {
+            try {
+              // 3. Verify signature
+              const verifyRes = await fetch(`${backendUrl}/verify`, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(response)
+              });
+              const verifyData = await verifyRes.json();
+              
+              if (verifyData.success) {
+                await handlePlaceOrder(response.razorpay_payment_id);
+              } else {
+                throw new Error("Payment verification failed. If money was deducted, it will be refunded.");
+              }
+            } catch (err) {
+              setCustomAlert({
+                visible: true, title: 'Verification Failed', message: err.message,
+                buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
+              });
+              setPlacingOrder(false);
+            }
+          };
+
+          options.modal = {
+            ondismiss: function() {
+              setPlacingOrder(false);
+            }
+          };
+          
+          const rzpWithModal = new window.Razorpay(options);
+          rzpWithModal.on('payment.failed', function (response){
+            setCustomAlert({
+              visible: true, title: 'Payment Failed', message: response.error.description || 'Unknown error',
+              buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
+            });
+            setPlacingOrder(false);
+          });
+          rzpWithModal.open();
+
+        } else {
+          // 2b. Open Razorpay Gateway (Mobile)
+          const paymentData = await RazorpayCheckout.open(options);
+          
+          // 3. Verify signature
+          const verifyRes = await fetch(`${backendUrl}/verify`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(paymentData)
+          });
+          const verifyData = await verifyRes.json();
+          
+          if (verifyData.success) {
+            await handlePlaceOrder(paymentData.razorpay_payment_id);
+          } else {
+            throw new Error("Payment verification failed. If money was deducted, it will be refunded.");
+          }
+        }
+      } catch (err) {
+        console.error("Payment Error:", err);
+        const errorMsg = err.description || err.message || 'Payment cancelled or could not connect to gateway.';
+        setCustomAlert({
+          visible: true, title: 'Payment Failed', message: errorMsg,
+          buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
+        });
+      } finally {
+        setPlacingOrder(false);
+      }
+    } else {
+      // COD Flow
+      handlePlaceOrder(null);
+    }
+  };
+
+  const handlePlaceOrder = async (transactionId = null) => {
     try {
       setPlacingOrder(true);
 
@@ -146,6 +309,8 @@ export default function ListingDetailScreen() {
         shipping_state: stateVal.trim(),
         shipping_pincode: pincode.trim(),
         notes: "Placed via Marketplace Buy Now",
+        payment_method: paymentMethod,
+        transaction_id: transactionId,
       };
 
       // Create order (stock is updated inside createOrder)
@@ -160,6 +325,8 @@ export default function ListingDetailScreen() {
           onPress: () => {
             setCustomAlert(prev => ({ ...prev, visible: false }));
             setIsBuyModalVisible(false);
+            setIsUtrModalVisible(false);
+            setUtrNumber('');
             router.push('/(tabs)/orders');
           }
         }]
@@ -255,7 +422,26 @@ export default function ListingDetailScreen() {
               listing.stock > 0 ? styles.buyBtn : styles.disabledBtn,
               pressed && styles.pressed,
             ]}
-            onPress={() => listing.stock > 0 && setIsBuyModalVisible(true)}
+            onPress={async () => {
+              if (listing.stock > 0) {
+                setIsBuyModalVisible(true);
+                setPaymentMethod('COD');
+                setFarmerUpiId(null);
+                if (listing.farmer_id) {
+                  setLoadingUpi(true);
+                  try {
+                    const userDoc = await getDoc(doc(db, 'users', listing.farmer_id));
+                    if (userDoc.exists()) {
+                      setFarmerUpiId(userDoc.data().upi_id || null);
+                    }
+                  } catch (err) {
+                    console.error("Failed to fetch farmer UPI:", err);
+                  } finally {
+                    setLoadingUpi(false);
+                  }
+                }
+              }
+            }}
             disabled={listing.stock <= 0}
           >
             <Text style={styles.buyBtnText}>
@@ -368,6 +554,41 @@ export default function ListingDetailScreen() {
               </View>
             </View>
 
+            {/* Payment Method */}
+            <Text style={styles.modalSectionTitle}>Payment Method</Text>
+            
+            <View style={styles.paymentMethodContainer}>
+              <Pressable
+                style={[styles.paymentOption, paymentMethod === 'COD' && styles.paymentOptionActive]}
+                onPress={() => setPaymentMethod('COD')}
+              >
+                <Text style={styles.paymentOptionEmoji}>💵</Text>
+                <Text style={[styles.paymentOptionText, paymentMethod === 'COD' && styles.paymentOptionTextActive]}>Cash on Delivery</Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.paymentOption, 
+                  paymentMethod === 'UPI' && styles.paymentOptionActive,
+                  (!farmerUpiId && !loadingUpi) && styles.paymentOptionDisabled
+                ]}
+                onPress={() => farmerUpiId && setPaymentMethod('UPI')}
+                disabled={!farmerUpiId && !loadingUpi}
+              >
+                <Text style={styles.paymentOptionEmoji}>📱</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.paymentOptionText, paymentMethod === 'UPI' && styles.paymentOptionTextActive]}>UPI Payment</Text>
+                  {loadingUpi ? (
+                    <Text style={styles.upiInfoText}>Loading seller UPI...</Text>
+                  ) : farmerUpiId ? (
+                    <Text style={styles.upiInfoText}>Pay to: {farmerUpiId}</Text>
+                  ) : (
+                    <Text style={styles.upiInfoText}>Seller has not configured UPI</Text>
+                  )}
+                </View>
+              </Pressable>
+            </View>
+
             {/* Order Summary */}
             <View style={styles.summaryContainer}>
               <Text style={styles.summaryTitle}>Order Summary</Text>
@@ -398,7 +619,7 @@ export default function ListingDetailScreen() {
 
               <Pressable 
                 style={({ pressed }) => [styles.modalConfirmBtn, pressed && styles.pressed]}
-                onPress={handlePlaceOrder}
+                onPress={handleInitiateOrder}
                 disabled={placingOrder}
               >
                 {placingOrder ? (
@@ -409,6 +630,76 @@ export default function ListingDetailScreen() {
               </Pressable>
             </View>
           </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* UTR Verification Modal */}
+      <Modal
+        visible={isUtrModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setIsUtrModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.centerOverlay}
+        >
+          <View style={styles.utrModalContainer}>
+            <Text style={styles.modalTitle}>Confirm UPI Payment</Text>
+            <Text style={styles.utrInstructions}>
+              Please complete the payment of <Text style={{fontWeight: 'bold'}}>{listing.currency}{(listing.price * buyQuantity).toFixed(2)}</Text> to UPI ID <Text style={{fontWeight: 'bold'}}>{farmerUpiId}</Text> in your UPI app and enter the 12-digit UTR (Transaction ID) below to place your order.
+            </Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>12-Digit UTR Number</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. 312345678901"
+                placeholderTextColor={themeColors.textMuted}
+                value={utrNumber}
+                onChangeText={setUtrNumber}
+                keyboardType="number-pad"
+                maxLength={12}
+              />
+            </View>
+
+            <View style={styles.modalActions}>
+              <Pressable 
+                style={({ pressed }) => [styles.modalCancelBtn, pressed && styles.pressed]}
+                onPress={() => setIsUtrModalVisible(false)}
+                disabled={placingOrder}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </Pressable>
+
+              <Pressable 
+                style={({ pressed }) => [
+                  styles.modalConfirmBtn, 
+                  pressed && styles.pressed,
+                  utrNumber.length !== 12 && styles.disabledBtn
+                ]}
+                onPress={() => {
+                  if (utrNumber.length === 12) {
+                    handlePlaceOrder(utrNumber);
+                  } else {
+                    setCustomAlert({
+                      visible: true,
+                      title: 'Invalid UTR',
+                      message: 'Please enter a valid 12-digit UTR number.',
+                      buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
+                    });
+                  }
+                }}
+                disabled={placingOrder || utrNumber.length !== 12}
+              >
+                {placingOrder ? (
+                  <ActivityIndicator color={themeColors.background} size="small" />
+                ) : (
+                  <Text style={styles.modalConfirmBtnText}>Confirm Order</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -651,6 +942,13 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
+  centerOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
   modalContainer: {
     backgroundColor: colors.background,
     borderTopLeftRadius: borderRadius.xl,
@@ -744,6 +1042,44 @@ const createStyles = (colors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  paymentMethodContainer: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  paymentOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  paymentOptionDisabled: {
+    opacity: 0.5,
+  },
+  paymentOptionEmoji: {
+    fontSize: 24,
+    marginRight: spacing.md,
+  },
+  paymentOptionText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  paymentOptionTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  upiInfoText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   summaryTitle: {
     ...typography.body,
     fontWeight: '700',
@@ -801,7 +1137,22 @@ const createStyles = (colors) => StyleSheet.create({
   },
   modalConfirmBtnText: {
     ...typography.body,
-    fontWeight: '700',
-    color: colors.background,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  utrModalContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  utrInstructions: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
 });

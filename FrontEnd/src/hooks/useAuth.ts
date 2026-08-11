@@ -23,6 +23,7 @@ export interface SignupData {
   pincode?: string;
   farm_name?: string;
   farm_location?: string;
+  upi_id?: string;
 }
 
 const AUTH_INIT_TIMEOUT_MS = 8000;
@@ -84,6 +85,7 @@ export default function useAuth() {
               pincode: data.pincode,
               farm_name: data.farm_name,
               farm_location: data.farm_location,
+              upi_id: data.upi_id,
               created_at: data.createdAt?.toDate?.()?.toISOString?.(),
             };
             storeLogin(userData);
@@ -135,6 +137,7 @@ export default function useAuth() {
         pincode: data.pincode || null,
         farm_name: data.role === 'farmer' ? data.farm_name : null,
         farm_location: data.role === 'farmer' ? data.farm_location : null,
+        upi_id: data.role === 'farmer' ? data.upi_id : null,
         createdAt: serverTimestamp(),
       };
 
@@ -152,6 +155,7 @@ export default function useAuth() {
         pincode: data.pincode,
         farm_name: data.farm_name,
         farm_location: data.farm_location,
+        upi_id: data.upi_id,
       };
 
       storeLogin(userData);
@@ -184,6 +188,7 @@ export default function useAuth() {
           pincode: data.pincode,
           farm_name: data.farm_name,
           farm_location: data.farm_location,
+          upi_id: data.upi_id,
           created_at: data.createdAt?.toDate?.()?.toISOString?.(),
         };
         storeLogin(userData);

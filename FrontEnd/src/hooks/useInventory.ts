@@ -72,6 +72,7 @@ function useInventory() {
   const [error, setError] = useState<string | null>(null);
   const user = useAppStore((state) => state.user);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const adminSelectedFarmerId = useAppStore((state) => state.adminSelectedFarmerId);
 
   // Fetch farmer's inventory with real-time updates
   const fetchInventory = useCallback(() => {
@@ -288,8 +289,10 @@ function useInventory() {
   const addInventoryItem = useCallback(async (itemData: CreateInventoryData): Promise<InventoryItem> => {
     if (!user) throw new Error('Not authenticated');
 
+    const targetFarmerId = (user.role === 'admin' && adminSelectedFarmerId) ? adminSelectedFarmerId : user.id;
+
     const docRef = await addDoc(collection(db, INVENTORY_COLLECTION), {
-      farmer_id: user.id,
+      farmer_id: targetFarmerId,
       name: itemData.name,
       description: itemData.description || null,
       category: itemData.category,
@@ -305,7 +308,7 @@ function useInventory() {
 
     return {
       id: docRef.id,
-      farmer_id: user.id,
+      farmer_id: targetFarmerId,
       name: itemData.name,
       description: itemData.description || null,
       category: itemData.category,
@@ -327,6 +330,8 @@ function useInventory() {
   ): Promise<void> => {
     if (!user) throw new Error('Not authenticated');
 
+    const targetFarmerId = (user.role === 'admin' && adminSelectedFarmerId) ? adminSelectedFarmerId : user.id;
+
     await updateDoc(doc(db, INVENTORY_COLLECTION, itemId), {
       ...updates,
       updated_at: serverTimestamp(),
@@ -338,7 +343,7 @@ function useInventory() {
         // Avoid composite index issues by querying by farmer_id and filtering in memory
         const listingsQuery = query(
           collection(db, MARKET_LISTINGS_COLLECTION),
-          where('farmer_id', '==', user.id)
+          where('farmer_id', '==', targetFarmerId)
         );
         const snapshot = await getDocs(listingsQuery);
         
@@ -405,13 +410,16 @@ function useInventory() {
   const listItemToMarket = useCallback(async (inventoryItem: InventoryItem): Promise<MarketListing> => {
     if (!user) throw new Error('Not authenticated');
 
-    const farmerName = user.farm_name || user.name || 'Unknown Farm';
-    const farmerLocation = user.farm_location || 'Unknown';
+    const targetFarmerId = inventoryItem.farmer_id;
+    // We should ideally fetch the farmer's actual name/location if admin is doing this, 
+    // but for now we fallback to 'Unknown Farm' if it's admin, or their profile if it's the farmer.
+    const farmerName = user.role === 'admin' ? 'Unknown Farm' : (user.farm_name || user.name || 'Unknown Farm');
+    const farmerLocation = user.role === 'admin' ? 'Unknown' : (user.farm_location || 'Unknown');
 
     // Create market listing
     const listingRef = await addDoc(collection(db, MARKET_LISTINGS_COLLECTION), {
       inventory_id: inventoryItem.id,
-      farmer_id: user.id,
+      farmer_id: targetFarmerId,
       title: inventoryItem.name,
       description: inventoryItem.description,
       category: inventoryItem.category,
@@ -434,7 +442,7 @@ function useInventory() {
     return {
       id: listingRef.id,
       inventory_id: inventoryItem.id,
-      farmer_id: user.id,
+      farmer_id: targetFarmerId,
       title: inventoryItem.name,
       description: inventoryItem.description,
       category: inventoryItem.category,

@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
+import { BACKEND_URL } from '../utils/apiConfig';
 
 export async function uploadDiseaseImage(asset) {
   try {

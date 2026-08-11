@@ -118,28 +118,37 @@ export default function EditInventoryScreen() {
     }
   };
 
+  const executeDelete = async () => {
+    try {
+      setLoading(true);
+      await deleteInventoryItem(inventoryId);
+      router.back();
+    } catch (err) {
+      setError(err.message || 'Failed to delete item');
+      setLoading(false);
+    }
+  };
+
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Item',
-      'Are you sure you want to delete this item from your inventory?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await deleteInventoryItem(inventoryId);
-              router.back();
-            } catch (err) {
-              setError(err.message || 'Failed to delete item');
-              setLoading(false);
-            }
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to delete this item from your inventory?');
+      if (confirmed) {
+        executeDelete();
+      }
+    } else {
+      Alert.alert(
+        'Delete Item',
+        'Are you sure you want to delete this item from your inventory?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: executeDelete,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleListToMarket = async () => {

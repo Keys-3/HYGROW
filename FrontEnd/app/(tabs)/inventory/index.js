@@ -293,7 +293,6 @@ const createStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.background,
   },
   header: {
-    padding: spacing.lg,
     paddingTop: 60,
     paddingBottom: spacing.sm,
   },
@@ -308,7 +307,6 @@ const createStyles = (theme) => StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
     gap: spacing.sm,
   },
@@ -331,7 +329,6 @@ const createStyles = (theme) => StyleSheet.create({
     color: theme.textSecondary,
   },
   addBtnWrap: {
-    marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
     borderRadius: borderRadius.md,
     ...shadows.small,
@@ -352,7 +349,6 @@ const createStyles = (theme) => StyleSheet.create({
   },
   errorBanner: {
     backgroundColor: theme.danger + '20',
-    marginHorizontal: spacing.lg,
     padding: spacing.md,
     borderRadius: borderRadius.md,
     marginBottom: spacing.md,
@@ -512,7 +508,6 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.surfaceLight,
-    marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.lg,

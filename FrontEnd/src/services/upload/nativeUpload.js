@@ -1,7 +1,6 @@
 import * as FileSystem from "expo-file-system";
 
-const BACKEND_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL;
+import { BACKEND_URL } from '../../utils/apiConfig';
 export async function uploadNativeImage(uri) {
   const result = await FileSystem.uploadAsync(
     BACKEND_URL,

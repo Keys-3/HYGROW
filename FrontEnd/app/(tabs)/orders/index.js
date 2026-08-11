@@ -58,7 +58,12 @@ function OrderCard({ order, onPress }) {
       </View>
 
       <View style={styles.cardFooter}>
-        <Text style={styles.totalLabel}>Total</Text>
+        <View>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.paymentMethodLabel}>
+            {order.payment_method === 'UPI' ? `📱 UPI UTR: ${order.transaction_id || 'Pending'}` : '💵 COD'}
+          </Text>
+        </View>
         <Text style={styles.totalAmount}>₹{order.total_amount.toFixed(2)}</Text>
       </View>
     </Pressable>
@@ -327,6 +332,11 @@ const createStyles = (colors) => StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
     color: colors.text,
+  },
+  paymentMethodLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   totalAmount: {
     ...typography.h3,

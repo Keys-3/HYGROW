@@ -1,11 +1,11 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 
 import diseaseRoutes from "./routes/disease.js";
 import growthRoutes from "./routes/growthPrediction.js";
-
-dotenv.config();
+import emailRoutes from "./routes/email.js";
+import paymentRoutes from "./routes/payment.js";
 
 const app = express();
 
@@ -21,6 +21,8 @@ app.use(express.urlencoded({
 // THEN register routes
 app.use("/growth", growthRoutes);
 app.use("/api", diseaseRoutes);
+app.use("/api/email", emailRoutes);
+app.use("/api/payment", paymentRoutes);
 
 app.get("/", (_, res) => {
   res.json({

@@ -57,6 +57,8 @@ export interface Order {
   updated_at: string;
   items?: OrderItem[];
   tracking?: OrderTracking[];
+  payment_method?: 'COD' | 'UPI';
+  transaction_id?: string;
 }
 
 export interface CreateOrderData {
@@ -74,6 +76,8 @@ export interface CreateOrderData {
   shipping_state?: string;
   shipping_pincode?: string;
   notes?: string;
+  payment_method: 'COD' | 'UPI';
+  transaction_id?: string;
 }
 
 const ORDERS_COLLECTION = 'orders';
@@ -86,6 +90,7 @@ export default function useOrders() {
   const [error, setError] = useState<string | null>(null);
   const user = useAppStore((state) => state.user);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const adminSelectedCustomerId = useAppStore((state) => state.adminSelectedCustomerId);
   const subscriptionsRef = useRef<Unsubscribe[]>([]);
 
   // Helper to fetch order details (items and tracking)
@@ -205,6 +210,8 @@ export default function useOrders() {
               notes: data.notes,
               created_at: data.created_at instanceof Timestamp ? data.created_at.toDate().toISOString() : new Date().toISOString(),
               updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate().toISOString() : new Date().toISOString(),
+              payment_method: data.payment_method || 'COD',
+              transaction_id: data.transaction_id,
               items,
               tracking,
             });
@@ -256,6 +263,8 @@ export default function useOrders() {
           notes: data.notes,
           created_at: data.created_at instanceof Timestamp ? data.created_at.toDate().toISOString() : new Date().toISOString(),
           updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate().toISOString() : new Date().toISOString(),
+          payment_method: data.payment_method || 'COD',
+          transaction_id: data.transaction_id,
           items,
           tracking,
         });
@@ -299,9 +308,11 @@ export default function useOrders() {
         0
       );
 
+      const targetCustomerId = (user.role === 'admin' && adminSelectedCustomerId) ? adminSelectedCustomerId : user.id;
+
       // Create order
       const orderRef = await addDoc(collection(db, ORDERS_COLLECTION), {
-        customer_id: user.id,
+        customer_id: targetCustomerId,
         status: 'pending',
         total_amount: totalAmount,
         shipping_address: orderData.shipping_address || null,
@@ -309,6 +320,8 @@ export default function useOrders() {
         shipping_state: orderData.shipping_state || null,
         shipping_pincode: orderData.shipping_pincode || null,
         notes: orderData.notes || null,
+        payment_method: orderData.payment_method,
+        transaction_id: orderData.transaction_id || null,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
@@ -378,7 +391,7 @@ export default function useOrders() {
       // Return the new order - the subscription will update the list
       return {
         id: orderRef.id,
-        customer_id: user.id,
+        customer_id: targetCustomerId,
         status: 'pending',
         total_amount: totalAmount,
         shipping_address: orderData.shipping_address,
@@ -388,6 +401,8 @@ export default function useOrders() {
         notes: orderData.notes,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        payment_method: orderData.payment_method,
+        transaction_id: orderData.transaction_id,
         items: [],
         tracking: [],
       };

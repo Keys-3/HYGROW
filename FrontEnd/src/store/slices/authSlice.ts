@@ -18,6 +18,7 @@ export interface User {
   farm_size?: string;
   crops?: string;
   experience?: string;
+  upi_id?: string;
   created_at?: string;
 }
 

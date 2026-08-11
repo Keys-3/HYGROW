@@ -133,6 +133,7 @@ export default function SettingsScreen() {
     farm_size: user?.farm_size || '',
     crops: user?.crops || '',
     experience: user?.experience || '',
+    upi_id: user?.upi_id || '',
     address: user?.address || '',
     city: user?.city || '',
     state: user?.state || '',
@@ -284,6 +285,7 @@ export default function SettingsScreen() {
       farm_size: user?.farm_size || '',
       crops: user?.crops || '',
       experience: user?.experience || '',
+      upi_id: user?.upi_id || '',
       address: user?.address || '',
       city: user?.city || '',
       state: user?.state || '',
@@ -441,6 +443,15 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>App Settings</Text>
         <LinearGradient colors={themeColors.cardGradients.default} style={styles.card}>
+          {(isFarmer || isAdmin) && (
+            <>
+              <Pressable style={styles.settingRow} onPress={() => router.push('/customization')}>
+                <Text style={styles.settingLabel}>Customize App Features</Text>
+                <Text style={{ color: themeColors.primary, fontSize: 20 }}>→</Text>
+              </Pressable>
+              <View style={styles.divider} />
+            </>
+          )}
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>Dark Mode</Text>
             <Switch
@@ -892,6 +903,16 @@ export default function SettingsScreen() {
                       value={editForm.crops}
                       onChangeText={(text) => setEditForm({...editForm, crops: text})}
                       placeholder="e.g. Tomatoes, Lettuce, Basil"
+                      placeholderTextColor={themeColors.textMuted}
+                    />
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>UPI ID (for receiving payments)</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editForm.upi_id}
+                      onChangeText={(text) => setEditForm({...editForm, upi_id: text})}
+                      placeholder="e.g. yourname@upi"
                       placeholderTextColor={themeColors.textMuted}
                     />
                   </View>

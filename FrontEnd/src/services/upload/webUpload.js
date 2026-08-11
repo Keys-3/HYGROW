@@ -1,5 +1,4 @@
-const BACKEND_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL;
+import { BACKEND_URL } from '../../utils/apiConfig';
 export async function uploadWebImage(uri) {
   const response = await fetch(uri);
 
