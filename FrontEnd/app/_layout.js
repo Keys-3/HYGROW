@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ThemeProvider, DarkTheme, DefaultTheme } from 'expo-router';
 
 import { useThemeColors } from '../src/theme/theme';
 import useAppStore from '../src/store/useAppStore';
@@ -55,17 +56,19 @@ export default function RootLayout() {
         end={{ x: 1, y: 1 }}
       />
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: 'transparent' },
-          animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right',
-        }}
-      >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: 'transparent' },
+            animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right',
+          }}
+        >
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </ThemeProvider>
     </View>
   );
 }

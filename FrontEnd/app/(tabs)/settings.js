@@ -75,7 +75,7 @@ export default function SettingsScreen() {
         const invQuery = query(collection(db, 'inventory'), where('farmer_id', '==', user.id));
         const invDocs = await getDocs(invQuery);
         for (const d of invDocs.docs) await deleteDoc(doc(db, 'inventory', d.id));
-        
+
         const mktQuery = query(collection(db, 'market_listings'), where('farmer_id', '==', user.id));
         const mktDocs = await getDocs(mktQuery);
         for (const d of mktDocs.docs) await deleteDoc(doc(db, 'market_listings', d.id));
@@ -102,11 +102,11 @@ export default function SettingsScreen() {
     setIsDeletingOther(true);
     try {
       const targetId = userToDelete.id;
-      
+
       const invQuery = query(collection(db, 'inventory'), where('farmer_id', '==', targetId));
       const invDocs = await getDocs(invQuery);
       for (const d of invDocs.docs) await deleteDoc(doc(db, 'inventory', d.id));
-      
+
       const mktQuery = query(collection(db, 'market_listings'), where('farmer_id', '==', targetId));
       const mktDocs = await getDocs(mktQuery);
       for (const d of mktDocs.docs) await deleteDoc(doc(db, 'market_listings', d.id));
@@ -213,7 +213,7 @@ export default function SettingsScreen() {
           validUserIds.push(docSnap.id);
         }
       });
-      
+
       // 2. Cleanup orphaned inventory
       const invSnap = await getDocs(collection(db, "inventory"));
       for (const invDoc of invSnap.docs) {
@@ -221,7 +221,7 @@ export default function SettingsScreen() {
           await deleteDoc(doc(db, "inventory", invDoc.id));
         }
       }
-      
+
       // 3. Cleanup orphaned market listings
       const mktSnap = await getDocs(collection(db, "market_listings"));
       for (const mktDoc of mktSnap.docs) {
@@ -238,7 +238,7 @@ export default function SettingsScreen() {
           await deleteDoc(doc(db, "orders", orderDoc.id));
         }
       }
-      
+
       alert("Orphaned data wiped successfully!");
     } catch (error) {
       console.error("Failed to wipe orphaned data:", error);
@@ -471,6 +471,11 @@ export default function SettingsScreen() {
               thumbColor={permissions.notifications ? themeColors.primary : themeColors.textMuted}
             />
           </View>
+          <View style={styles.divider} />
+          <Pressable style={styles.settingRow} onPress={() => router.push('/contact-team')}>
+            <Text style={styles.settingLabel}>Contact Team & Support</Text>
+            <Text style={{ color: themeColors.primary, fontSize: 20 }}>→</Text>
+          </Pressable>
         </LinearGradient>
       </View>
 
@@ -575,12 +580,12 @@ export default function SettingsScreen() {
                 end={{ x: 1, y: 0 }}
               >
                 <Text style={[styles.grantAllBtnText, (permissions.camera && permissions.storage && permissions.notifications) && { color: themeColors.textSecondary }]}>
-                {permissions.camera && permissions.storage && permissions.notifications
-                  ? 'All Permissions Granted ✓'
-                  : 'Grant All Permissions'}
-              </Text>
-            </LinearGradient>
-          </Pressable>
+                  {permissions.camera && permissions.storage && permissions.notifications
+                    ? 'All Permissions Granted ✓'
+                    : 'Grant All Permissions'}
+                </Text>
+              </LinearGradient>
+            </Pressable>
           </LinearGradient>
         </View>
       )}
@@ -619,12 +624,11 @@ export default function SettingsScreen() {
       {isAdmin && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Global Data Filters</Text>
-          <Text style={styles.sectionDesc}>Filter data across all tabs by a specific user.</Text>
           <LinearGradient colors={themeColors.cardGradients.default} style={styles.card}>
-            
+
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Farmer Filter</Text>
-              <Pressable 
+              <Pressable
                 style={styles.adminFilterBtn}
                 onPress={() => setShowAdminFarmerModal(true)}
               >
@@ -639,7 +643,7 @@ export default function SettingsScreen() {
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Customer Filter</Text>
-              <Pressable 
+              <Pressable
                 style={styles.adminFilterBtn}
                 onPress={() => setShowAdminCustomerModal(true)}
               >
@@ -652,7 +656,7 @@ export default function SettingsScreen() {
 
             <View style={styles.divider} />
             <View style={styles.infoRow}>
-              <Pressable 
+              <Pressable
                 style={[styles.adminFilterBtn, { backgroundColor: themeColors.danger + '20', width: '100%' }]}
                 onPress={handleWipeOrphanedData}
                 disabled={isWipingData}
@@ -830,7 +834,7 @@ export default function SettingsScreen() {
                 <Text style={styles.closeBtnText}>✕</Text>
               </Pressable>
             </View>
-            
+
             <ScrollView style={styles.editFormScroll} showsVerticalScrollIndicator={false}>
               <Text style={styles.formSectionTitle}>Personal Details</Text>
               <View style={styles.inputGroup}>
@@ -838,7 +842,7 @@ export default function SettingsScreen() {
                 <TextInput
                   style={styles.input}
                   value={editForm.name}
-                  onChangeText={(text) => setEditForm({...editForm, name: text})}
+                  onChangeText={(text) => setEditForm({ ...editForm, name: text })}
                   placeholderTextColor={themeColors.textMuted}
                 />
               </View>
@@ -847,7 +851,7 @@ export default function SettingsScreen() {
                 <TextInput
                   style={styles.input}
                   value={editForm.phone}
-                  onChangeText={(text) => setEditForm({...editForm, phone: text})}
+                  onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
                   keyboardType="phone-pad"
                   placeholderTextColor={themeColors.textMuted}
                 />
@@ -861,7 +865,7 @@ export default function SettingsScreen() {
                     <TextInput
                       style={styles.input}
                       value={editForm.farm_name}
-                      onChangeText={(text) => setEditForm({...editForm, farm_name: text})}
+                      onChangeText={(text) => setEditForm({ ...editForm, farm_name: text })}
                       placeholderTextColor={themeColors.textMuted}
                     />
                   </View>
@@ -870,7 +874,7 @@ export default function SettingsScreen() {
                     <TextInput
                       style={styles.input}
                       value={editForm.farm_location}
-                      onChangeText={(text) => setEditForm({...editForm, farm_location: text})}
+                      onChangeText={(text) => setEditForm({ ...editForm, farm_location: text })}
                       placeholderTextColor={themeColors.textMuted}
                     />
                   </View>
@@ -880,7 +884,7 @@ export default function SettingsScreen() {
                       <TextInput
                         style={styles.input}
                         value={editForm.farm_size}
-                        onChangeText={(text) => setEditForm({...editForm, farm_size: text})}
+                        onChangeText={(text) => setEditForm({ ...editForm, farm_size: text })}
                         keyboardType="numeric"
                         placeholderTextColor={themeColors.textMuted}
                       />
@@ -890,7 +894,7 @@ export default function SettingsScreen() {
                       <TextInput
                         style={styles.input}
                         value={editForm.experience}
-                        onChangeText={(text) => setEditForm({...editForm, experience: text})}
+                        onChangeText={(text) => setEditForm({ ...editForm, experience: text })}
                         keyboardType="numeric"
                         placeholderTextColor={themeColors.textMuted}
                       />
@@ -901,7 +905,7 @@ export default function SettingsScreen() {
                     <TextInput
                       style={styles.input}
                       value={editForm.crops}
-                      onChangeText={(text) => setEditForm({...editForm, crops: text})}
+                      onChangeText={(text) => setEditForm({ ...editForm, crops: text })}
                       placeholder="e.g. Tomatoes, Lettuce, Basil"
                       placeholderTextColor={themeColors.textMuted}
                     />
@@ -911,7 +915,7 @@ export default function SettingsScreen() {
                     <TextInput
                       style={styles.input}
                       value={editForm.upi_id}
-                      onChangeText={(text) => setEditForm({...editForm, upi_id: text})}
+                      onChangeText={(text) => setEditForm({ ...editForm, upi_id: text })}
                       placeholder="e.g. yourname@upi"
                       placeholderTextColor={themeColors.textMuted}
                     />
@@ -925,7 +929,7 @@ export default function SettingsScreen() {
                 <TextInput
                   style={styles.input}
                   value={editForm.address}
-                  onChangeText={(text) => setEditForm({...editForm, address: text})}
+                  onChangeText={(text) => setEditForm({ ...editForm, address: text })}
                   placeholderTextColor={themeColors.textMuted}
                 />
               </View>
@@ -935,7 +939,7 @@ export default function SettingsScreen() {
                   <TextInput
                     style={styles.input}
                     value={editForm.city}
-                    onChangeText={(text) => setEditForm({...editForm, city: text})}
+                    onChangeText={(text) => setEditForm({ ...editForm, city: text })}
                     placeholderTextColor={themeColors.textMuted}
                   />
                 </View>
@@ -944,7 +948,7 @@ export default function SettingsScreen() {
                   <TextInput
                     style={styles.input}
                     value={editForm.state}
-                    onChangeText={(text) => setEditForm({...editForm, state: text})}
+                    onChangeText={(text) => setEditForm({ ...editForm, state: text })}
                     placeholderTextColor={themeColors.textMuted}
                   />
                 </View>
@@ -954,7 +958,7 @@ export default function SettingsScreen() {
                 <TextInput
                   style={styles.input}
                   value={editForm.pincode}
-                  onChangeText={(text) => setEditForm({...editForm, pincode: text})}
+                  onChangeText={(text) => setEditForm({ ...editForm, pincode: text })}
                   keyboardType="numeric"
                   placeholderTextColor={themeColors.textMuted}
                 />
@@ -1026,7 +1030,7 @@ export default function SettingsScreen() {
                       {farmer.farm_name || farmer.name} ({farmer.email || 'No email'})
                     </Text>
                   </Pressable>
-                  <Pressable 
+                  <Pressable
                     style={{ padding: spacing.md }}
                     onPress={() => setUserToDelete(farmer)}
                   >
@@ -1077,7 +1081,7 @@ export default function SettingsScreen() {
                       {customer.name} ({customer.email || 'No email'})
                     </Text>
                   </Pressable>
-                  <Pressable 
+                  <Pressable
                     style={{ padding: spacing.md }}
                     onPress={() => setUserToDelete(customer)}
                   >

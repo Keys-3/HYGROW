@@ -3,11 +3,16 @@
  * Manages native local notifications and provides web browser fallbacks.
  */
 
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-// Configure how notifications are handled when the app is in the foreground
+let Notifications: any = {
+  AndroidNotificationPriority: { HIGH: 'high' }
+};
+
 try {
+  Notifications = require('expo-notifications');
+  
+  // Configure how notifications are handled when the app is in the foreground
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -18,7 +23,12 @@ try {
     }),
   });
 } catch (error) {
-  console.warn('Failed to set expo-notifications handler:', error);
+  console.warn('expo-notifications is not available (likely running in Expo Go on SDK 53+). Notifications will be mocked.', error);
+  
+  // Provide mock implementations
+  Notifications.scheduleNotificationAsync = async () => {
+    console.log('[Mock Notification] Scheduled notification');
+  };
 }
 
 export const notificationService = {

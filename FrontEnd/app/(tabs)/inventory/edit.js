@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import {
 import { db } from '../../../firebase';
 import useInventory from '../../../src/hooks/useInventory';
 import useAppStore from '../../../src/store/useAppStore';
-import { colors, spacing, borderRadius, typography } from '../../../src/theme/theme';
+import { useThemeColors, spacing, borderRadius, typography } from '../../../src/theme/theme';
 
 const CATEGORIES = ['Vegetables', 'Fruits', 'Herbs', 'Microgreens', 'Supplies'];
 const UNITS = ['kg', 'g', 'piece', 'bundle', 'tray', 'pack', 'set', 'L'];
@@ -39,6 +39,9 @@ export default function EditInventoryScreen() {
     unlistItemFromMarket,
   } = useInventory();
   const user = useAppStore((state) => state.user);
+
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -227,7 +230,7 @@ export default function EditInventoryScreen() {
           <TextInput
             style={styles.input}
             placeholder="e.g., Fresh Hydroponic Lettuce"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             value={name}
             onChangeText={setName}
             editable={!loading}
@@ -240,7 +243,7 @@ export default function EditInventoryScreen() {
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Describe your product..."
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -274,7 +277,7 @@ export default function EditInventoryScreen() {
             <TextInput
               style={styles.input}
               placeholder="0"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={themeColors.textMuted}
               value={quantity}
               onChangeText={setQuantity}
               keyboardType="decimal-pad"
@@ -305,7 +308,7 @@ export default function EditInventoryScreen() {
           <TextInput
             style={styles.input}
             placeholder="0"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             value={price}
             onChangeText={setPrice}
             keyboardType="decimal-pad"
@@ -320,7 +323,7 @@ export default function EditInventoryScreen() {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color={colors.background} />
+            <ActivityIndicator color={themeColors.background} />
           ) : (
             <Text style={styles.saveBtnText}>
               {isEditing ? 'Update Item' : 'Add to Inventory'}
@@ -339,7 +342,7 @@ export default function EditInventoryScreen() {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color={colors.warning} />
+                  <ActivityIndicator color={themeColors.warning} />
                 ) : (
                   <Text style={styles.unlistBtnText}>Unlist from Market</Text>
                 )}
@@ -351,7 +354,7 @@ export default function EditInventoryScreen() {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color={colors.background} />
+                  <ActivityIndicator color={themeColors.background} />
                 ) : (
                   <Text style={styles.listBtnText}>List to Market</Text>
                 )}
@@ -368,7 +371,7 @@ export default function EditInventoryScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={colors.danger} />
+              <ActivityIndicator color={themeColors.danger} />
             ) : (
               <Text style={styles.deleteBtnText}>Delete from Inventory</Text>
             )}
@@ -381,7 +384,7 @@ export default function EditInventoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

@@ -4,45 +4,49 @@
     "slug": "HyGrow",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/hygrow-icon.png",
     "scheme": "farmhelp",
     "userInterfaceStyle": "dark",
     "plugins": [
-  "expo-router",
-  "expo-font",
-  "expo-web-browser",
-  [
-    "expo-splash-screen",
-    {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
-    }
-  ],
-  "expo-status-bar"
-],
+      "expo-router",
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/hygrow-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0F172A"
+        }
+      ],
+      "expo-status-bar"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.farmhelp.app",
-      "icon": "./assets/images/icon.png",
+      "icon": "./assets/images/hygrow-icon.png",
       "userInterfaceStyle": "dark",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "icon": "./assets/images/hygrow-icon.png",
       "package": "com.farmhelp.app",
       "adaptiveIcon": {
         "backgroundColor": "#0F172A",
-        "foregroundImage": "./assets/images/icon.png"
+        "foregroundImage": "./assets/images/hygrow-icon.png"
       }
+    },
+    "androidNavigationBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#0F172A"
     },
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/hygrow-icon.png"
     },
-
     "experiments": {
       "typedRoutes": true
     },

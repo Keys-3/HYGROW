@@ -4,7 +4,16 @@
  */
 
 import * as ImagePicker from 'expo-image-picker';
-import * as Notifications from 'expo-notifications';
+let Notifications: any = {};
+try {
+  Notifications = require('expo-notifications');
+} catch (error) {
+  console.warn('expo-notifications is not available in permissionManager. Fallbacks will be used.');
+  Notifications = {
+    getPermissionsAsync: async () => ({ granted: false, status: 'denied' }),
+    requestPermissionsAsync: async () => ({ status: 'denied' })
+  };
+}
 import { Platform } from 'react-native';
 
 export interface AppPermissions {
