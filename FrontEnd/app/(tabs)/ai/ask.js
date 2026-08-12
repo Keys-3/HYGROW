@@ -13,11 +13,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Send, Bot, User } from 'lucide-react-native';
-import axios from 'axios';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useThemeColors, spacing, borderRadius, typography } from '../../../src/theme/theme';
 import useAppStore from '../../../src/store/useAppStore';
-
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
 export default function AskAIScreen() {
   const router = useRouter();
@@ -58,7 +56,9 @@ export default function AskAIScreen() {
     setIsLoading(true);
 
     try {
-      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      const rawKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
+      const apiKey = rawKey.trim();
+      
       if (!apiKey || apiKey === 'dummy_gemini_api_key_here') {
         // Fallback for dummy key to simulate AI response
         setTimeout(() => {
@@ -72,21 +72,23 @@ export default function AskAIScreen() {
         return;
       }
 
-      // Format history for Gemini API
-      const contents = messages.map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.text }]
-      }));
-      contents.push({ role: 'user', parts: [{ text: userMessage.text }] });
+      // Format history for Gemini SDK
+      const history = messages
+        .filter(msg => msg.id !== '1')
+        .map(msg => ({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.text }]
+        }));
 
-      const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
-        contents,
-        systemInstruction: {
-          parts: [{ text: getSystemPrompt() }]
-        }
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-1.5-flash',
+        systemInstruction: getSystemPrompt()
       });
 
-      const aiText = response.data.candidates[0].content.parts[0].text;
+      const chat = model.startChat({ history });
+      const result = await chat.sendMessage(userMessage.text);
+      const aiText = result.response.text();
       
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -142,15 +144,15 @@ export default function AskAIScreen() {
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 90}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft color={themeColors.text} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>HyGrow AI</Text>
-        <View style={{ width: 24 }} /> {/* Empty view for centering */}
+        <View style={{ width: 24 }} />
       </View>
 
       <FlatList

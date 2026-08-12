@@ -222,6 +222,7 @@ export default function TabLayout() {
       sceneContainerStyle={{ backgroundColor: 'transparent' }}
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           ...styles.tabBar,
           height: tabBarHeight,
