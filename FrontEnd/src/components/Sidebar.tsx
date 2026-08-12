@@ -18,10 +18,10 @@ const getNavItems = (role: string, features: any) => {
   const items = [
     { name: 'Dashboard', icon: House, href: '/dashboard', roles: ['farmer', 'admin'], featureKey: 'sensors' },
     { name: 'AI Tools', icon: Bot, href: '/ai', roles: ['farmer', 'admin'], featureKey: 'aiTools' },
-    { name: 'Market', icon: ShoppingCart, href: '/market', roles: ['customer', 'admin'] },
     { name: 'Inventory', icon: Warehouse, href: '/inventory', roles: ['farmer', 'admin'], featureKey: 'inventory' },
-    { name: 'Orders', icon: Package, href: '/orders', roles: ['customer', 'admin'] },
     { name: 'Analytics', icon: BarChart3, href: '/analytics', roles: ['farmer', 'admin'], featureKey: 'analytics' },
+    { name: 'Market', icon: ShoppingCart, href: '/market', roles: ['customer', 'admin'] },
+    { name: 'Orders', icon: Package, href: '/orders', roles: ['customer', 'admin'] },
     { name: 'Setting', icon: Settings, href: '/settings', roles: ['farmer', 'customer', 'admin'] },
   ];
 

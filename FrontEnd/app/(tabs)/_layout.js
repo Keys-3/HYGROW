@@ -206,10 +206,10 @@ export default function TabLayout() {
           >
             <Tabs.Screen name="dashboard" options={{ title: 'Dashboard' }} />
             <Tabs.Screen name="ai" options={{ title: 'AI Tools' }} />
-            <Tabs.Screen name="market" options={{ title: 'Market' }} />
             <Tabs.Screen name="inventory" options={{ title: 'Inventory' }} />
-            <Tabs.Screen name="orders" options={{ title: 'Orders' }} />
             <Tabs.Screen name="analytics" options={{ title: 'Analytics' }} />
+            <Tabs.Screen name="market" options={{ title: 'Market' }} />
+            <Tabs.Screen name="orders" options={{ title: 'Orders' }} />
             <Tabs.Screen name="settings" options={{ title: 'Setting' }} />
           </Tabs>
         </View>
@@ -271,23 +271,6 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="market"
-        options={{
-          title: 'Market',
-          tabBarIcon: ({ focused }) => <TabIcon Icon={ShoppingCart} label="Market" focused={focused} />,
-          tabBarItemStyle: userRole !== 'customer' && userRole !== 'admin' ? { display: 'none' } : undefined,
-        }}
-        listeners={{
-          tabPress: (e) => {
-            if (userRole !== 'customer' && userRole !== 'admin') {
-              e.preventDefault();
-              router.replace('/(tabs)/inventory');
-            }
-          },
-        }}
-      />
-
-      <Tabs.Screen
         name="inventory"
         options={{
           title: 'Inventory',
@@ -305,23 +288,6 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="orders"
-        options={{
-          title: 'Orders',
-          tabBarIcon: ({ focused }) => <TabIcon Icon={Package} label="Orders" focused={focused} />,
-          tabBarItemStyle: userRole === 'farmer' ? { display: 'none' } : undefined,
-        }}
-        listeners={{
-          tabPress: (e) => {
-            if (userRole === 'farmer') {
-              e.preventDefault();
-              router.replace('/(tabs)/dashboard');
-            }
-          },
-        }}
-      />
-
-      <Tabs.Screen
         name="analytics"
         options={{
           title: 'Analytics',
@@ -333,6 +299,40 @@ export default function TabLayout() {
             if (userRole === 'customer') {
               e.preventDefault();
               router.replace('/(tabs)/market');
+            }
+          },
+        }}
+      />
+
+      <Tabs.Screen
+        name="market"
+        options={{
+          title: 'Market',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={ShoppingCart} label="Market" focused={focused} />,
+          tabBarItemStyle: userRole !== 'customer' && userRole !== 'admin' ? { display: 'none' } : undefined,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (userRole !== 'customer' && userRole !== 'admin') {
+              e.preventDefault();
+              router.replace('/(tabs)/inventory');
+            }
+          },
+        }}
+      />
+
+      <Tabs.Screen
+        name="orders"
+        options={{
+          title: 'Orders',
+          tabBarIcon: ({ focused }) => <TabIcon Icon={Package} label="Orders" focused={focused} />,
+          tabBarItemStyle: userRole === 'farmer' ? { display: 'none' } : undefined,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (userRole === 'farmer') {
+              e.preventDefault();
+              router.replace('/(tabs)/dashboard');
             }
           },
         }}
