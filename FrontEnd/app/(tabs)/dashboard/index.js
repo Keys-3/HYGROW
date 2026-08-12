@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Thermometer, Droplets, FlaskConical, Zap, Waves, Sun, Moon } from 'lucide-react-native';
+import { Thermometer, Droplets, FlaskConical, Zap, Waves, Sun, Moon, Cloud, ThermometerSnow, Wind } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import useSensorData from '../../../src/hooks/useSensorData';
@@ -40,6 +40,9 @@ const ICON_MAP = {
   ec: Zap,
   waterLevel: Waves,
   lightIntensity: Sun,
+  vpd: Cloud,
+  waterTemp: ThermometerSnow,
+  co2: Wind,
 };
 
 export default function DashboardScreen() {

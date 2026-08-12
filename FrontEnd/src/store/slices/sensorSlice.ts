@@ -8,6 +8,9 @@ export interface SensorData {
   ec: number;
   waterLevel: number;
   lightIntensity: number;
+  vpd: number;
+  waterTemp: number;
+  co2: number;
   pumpStatus: boolean;
   autoMode: boolean;
   lastSensorTimestamp: string;
@@ -32,6 +35,9 @@ export const createSensorSlice: StateCreator<SensorSlice> = (set) => ({
     ec: 1.5,
     waterLevel: 82,
     lightIntensity: 15500,
+    vpd: 0.95,
+    waterTemp: 20,
+    co2: 450,
     pumpStatus: true,
     autoMode: true,
     lastSensorTimestamp: new Date().toISOString(),

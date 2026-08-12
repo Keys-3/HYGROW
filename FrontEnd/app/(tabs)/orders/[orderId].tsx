@@ -273,6 +273,13 @@ export default function OrderDetailScreen() {
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalAmount}>₹{order.total_amount.toFixed(2)}</Text>
           </View>
+          <View style={styles.divider} />
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Payment Method</Text>
+            <Text style={styles.paymentMethod}>
+              {order.payment_method === 'ONLINE' ? `💳 Razorpay (${order.transaction_id || 'Captured'})` : order.payment_method === 'UPI' ? `📱 UPI UTR: ${order.transaction_id || 'Pending'}` : '💵 Cash on Delivery'}
+            </Text>
+          </View>
         </View>
 
         {/* Shipping Address */}
@@ -569,6 +576,21 @@ const createStyles = (colors: any) => StyleSheet.create({
   totalAmount: {
     ...typography.h2,
     color: colors.primary,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  paymentLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  paymentMethod: {
+    ...typography.body,
+    fontWeight: '500',
+    color: colors.text,
   },
   addressCard: {
     backgroundColor: colors.surface,

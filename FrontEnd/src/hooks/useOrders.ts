@@ -13,7 +13,8 @@ import {
   onSnapshot,
   Timestamp,
   Unsubscribe,
-  deleteDoc
+  deleteDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../../firebase';
 import useAppStore from '../store/useAppStore';
@@ -57,7 +58,7 @@ export interface Order {
   updated_at: string;
   items?: OrderItem[];
   tracking?: OrderTracking[];
-  payment_method?: 'COD' | 'UPI';
+  payment_method?: 'COD' | 'UPI' | 'ONLINE';
   transaction_id?: string;
 }
 
@@ -76,7 +77,7 @@ export interface CreateOrderData {
   shipping_state?: string;
   shipping_pincode?: string;
   notes?: string;
-  payment_method: 'COD' | 'UPI';
+  payment_method: 'COD' | 'UPI' | 'ONLINE';
   transaction_id?: string;
 }
 
@@ -191,13 +192,11 @@ export default function useOrders() {
         );
 
         const unsubOrders = onSnapshot(ordersQuery, async (ordersSnapshot) => {
-          const ordersData: Order[] = [];
-
-          for (const orderDoc of ordersSnapshot.docs) {
+          const ordersData = await Promise.all(ordersSnapshot.docs.map(async (orderDoc) => {
             const data = orderDoc.data();
             const { items, tracking } = await fetchOrderDetails(orderDoc.id);
 
-            ordersData.push({
+            return {
               id: orderDoc.id,
               customer_id: data.customer_id,
               seller_id: data.seller_id,
@@ -214,8 +213,8 @@ export default function useOrders() {
               transaction_id: data.transaction_id,
               items,
               tracking,
-            });
-          }
+            };
+          }));
 
           setOrders(ordersData);
           setLoading(false);
@@ -244,13 +243,11 @@ export default function useOrders() {
 
     // Subscribe to orders for customers and admins
     const unsubscribe = onSnapshot(ordersQuery, async (ordersSnapshot) => {
-      const ordersData: Order[] = [];
-
-      for (const orderDoc of ordersSnapshot.docs) {
+      const ordersData = await Promise.all(ordersSnapshot.docs.map(async (orderDoc) => {
         const data = orderDoc.data();
         const { items, tracking } = await fetchOrderDetails(orderDoc.id);
 
-        ordersData.push({
+        return {
           id: orderDoc.id,
           customer_id: data.customer_id,
           seller_id: data.seller_id,
@@ -267,8 +264,8 @@ export default function useOrders() {
           transaction_id: data.transaction_id,
           items,
           tracking,
-        });
-      }
+        };
+      }));
 
       setOrders(ordersData);
       setLoading(false);
@@ -310,8 +307,11 @@ export default function useOrders() {
 
       const targetCustomerId = (user.role === 'admin' && adminSelectedCustomerId) ? adminSelectedCustomerId : user.id;
 
+      const batch = writeBatch(db);
+
       // Create order
-      const orderRef = await addDoc(collection(db, ORDERS_COLLECTION), {
+      const orderRef = doc(collection(db, ORDERS_COLLECTION));
+      batch.set(orderRef, {
         customer_id: targetCustomerId,
         status: 'pending',
         total_amount: totalAmount,
@@ -327,8 +327,9 @@ export default function useOrders() {
       });
 
       // Create order items
-      const itemsPromises = orderData.items.map(item =>
-        addDoc(collection(db, ORDER_ITEMS_COLLECTION), {
+      orderData.items.forEach(item => {
+        const itemRef = doc(collection(db, ORDER_ITEMS_COLLECTION));
+        batch.set(itemRef, {
           order_id: orderRef.id,
           seller_id: item.seller_id,
           product_name: item.product_name,
@@ -339,9 +340,33 @@ export default function useOrders() {
           total_price: item.price_per_unit * item.quantity,
           listing_id: item.listing_id || null,
           created_at: serverTimestamp(),
-        })
-      );
-      await Promise.all(itemsPromises);
+        });
+      });
+
+      // Create initial tracking entry
+      const trackingRef = doc(collection(db, ORDER_TRACKING_COLLECTION));
+      batch.set(trackingRef, {
+        order_id: orderRef.id,
+        status: 'pending',
+        notes: 'Order placed',
+        updated_by: user.id,
+        created_at: serverTimestamp(),
+      });
+
+      // Create Payment Record for ONLINE payments
+      if (orderData.payment_method === 'ONLINE' && orderData.transaction_id) {
+        const paymentRef = doc(collection(db, 'payments'));
+        batch.set(paymentRef, {
+          order_id: orderRef.id,
+          customer_id: targetCustomerId,
+          transaction_id: orderData.transaction_id,
+          amount: totalAmount,
+          status: 'captured',
+          created_at: serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
 
       // Reduce stock for each item with a listing_id
       const stockUpdatePromises = orderData.items.map(async (item) => {
@@ -379,14 +404,7 @@ export default function useOrders() {
       });
       await Promise.all(stockUpdatePromises);
 
-      // Create initial tracking entry
-      await addDoc(collection(db, ORDER_TRACKING_COLLECTION), {
-        order_id: orderRef.id,
-        status: 'pending',
-        notes: 'Order placed',
-        updated_by: user.id,
-        created_at: serverTimestamp(),
-      });
+
 
       // Return the new order - the subscription will update the list
       return {
@@ -418,8 +436,30 @@ export default function useOrders() {
     location?: string
   ) => {
     try {
-      // If cancelling, restore stock to listings first
+      // If cancelling, restore stock to listings first and process refunds
       if (status === 'cancelled') {
+        const orderDoc = await getDoc(doc(db, ORDERS_COLLECTION, orderId));
+        if (orderDoc.exists()) {
+          const orderData = orderDoc.data();
+          if (orderData.payment_method === 'ONLINE' && orderData.transaction_id) {
+            // Process refund
+            try {
+              const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://192.168.1.5:3000/api/payment';
+              const refundRes = await fetch(`${backendUrl}/refund`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ payment_id: orderData.transaction_id }),
+              });
+              const refundData = await refundRes.json();
+              if (!refundData.success) {
+                throw new Error(refundData.message || 'Refund processing failed on backend');
+              }
+            } catch (refundErr: any) {
+              throw new Error(`Refund failed: ${refundErr.message}. Order not cancelled.`);
+            }
+          }
+        }
+
         const itemsQuery = query(
           collection(db, ORDER_ITEMS_COLLECTION),
           where('order_id', '==', orderId)

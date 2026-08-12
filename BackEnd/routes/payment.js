@@ -53,4 +53,26 @@ router.post('/verify', (req, res) => {
   }
 });
 
+router.post('/refund', async (req, res) => {
+  try {
+    const { payment_id, amount } = req.body;
+    
+    if (!payment_id) {
+      return res.status(400).json({ success: false, message: "payment_id is required for a refund" });
+    }
+
+    const instance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_mock_key',
+      key_secret: process.env.RAZORPAY_KEY_SECRET || 'rzp_test_mock_secret',
+    });
+
+    const refund = await instance.payments.refund(payment_id);
+    
+    res.json({ success: true, refund });
+  } catch (error) {
+    console.error('Razorpay Refund Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;

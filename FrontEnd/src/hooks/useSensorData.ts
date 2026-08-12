@@ -25,7 +25,18 @@ type HistoryPoint = {
   ec: number;
   waterLevel: number;
   lightIntensity: number;
+  vpd: number;
+  waterTemp: number;
+  co2: number;
 };
+
+function calculateVPD(tempC: number, rh: number): number {
+  if (tempC === 0 && rh === 0) return 0;
+  // SVP = 0.61078 * exp((17.27 * T) / (T + 237.3)) in kPa
+  const svp = 0.61078 * Math.exp((17.27 * tempC) / (tempC + 237.3));
+  const avp = svp * (rh / 100);
+  return Number((svp - avp).toFixed(2));
+}
 
 export default function useSensorData() {
   const storeSensorData = useAppStore((state) => state.sensorData);
@@ -78,6 +89,9 @@ export default function useSensorData() {
               ec: data.tds_ppm ?? 0,
               waterLevel: data.water_level_percent ?? 0,
               lightIntensity: data.light_lux ?? 0,
+              vpd: data.vpd !== undefined ? data.vpd : calculateVPD(data.air_temp_c ?? 0, data.humidity_percent ?? 0),
+              waterTemp: data.water_temp_c ?? 20,
+              co2: data.co2_ppm ?? 450,
             };
           }).reverse(); 
           
@@ -98,6 +112,9 @@ export default function useSensorData() {
               ec: 1.5 + sinVal * 0.1,
               waterLevel: 82 + sinVal * 2,
               lightIntensity: 15500 + sinVal * 1000,
+              vpd: 0.9 + sinVal * 0.1,
+              waterTemp: 20 + sinVal * 0.5,
+              co2: 450 + sinVal * 50,
             };
           });
           setHistory(mockHistory);
@@ -132,6 +149,9 @@ export default function useSensorData() {
 
           waterLevel: data.water_level_percent ?? 0,
           lightIntensity: data.light_lux ?? 0,
+          vpd: data.vpd !== undefined ? data.vpd : calculateVPD(data.air_temp_c ?? 0, data.humidity_percent ?? 0),
+          waterTemp: data.water_temp_c ?? 20,
+          co2: data.co2_ppm ?? 450,
 
           // These aren't in Firestore yet, so using defaults
           pumpStatus: false,

@@ -47,6 +47,9 @@ export const darkColors = {
     ec: '#3B82F6',
     waterLevel: '#22C55E',
     lightIntensity: '#F59E0B',
+    vpd: '#D946EF',
+    waterTemp: '#0284C7',
+    co2: '#0D9488',
   },
   
   // Gradients (adjusted for green/blue theme)
@@ -58,6 +61,9 @@ export const darkColors = {
     ec: ['#3B82F6', '#1D4ED8'],
     waterLevel: ['#22C55E', '#15803D'],
     lightIntensity: ['#F59E0B', '#B45309'],
+    vpd: ['#D946EF', '#A21CAF'],
+    waterTemp: ['#0284C7', '#0369A1'],
+    co2: ['#0D9488', '#0F766E'],
   },
 
   // Deep Gradient Card Backgrounds
@@ -69,6 +75,9 @@ export const darkColors = {
     ec: ['rgba(59, 130, 246, 0.15)', 'rgba(29, 78, 216, 0.05)'],
     waterLevel: ['rgba(34, 197, 94, 0.15)', 'rgba(21, 128, 61, 0.05)'],
     lightIntensity: ['rgba(245, 158, 11, 0.15)', 'rgba(180, 83, 9, 0.05)'],
+    vpd: ['rgba(217, 70, 239, 0.15)', 'rgba(162, 28, 175, 0.05)'],
+    waterTemp: ['rgba(2, 132, 199, 0.15)', 'rgba(3, 105, 161, 0.05)'],
+    co2: ['rgba(13, 148, 136, 0.15)', 'rgba(15, 118, 110, 0.05)'],
   },
 
   successLight: 'rgba(34, 197, 94, 0.15)',
@@ -118,6 +127,9 @@ export const lightColors = {
     ec: '#2563EB',
     waterLevel: '#16A34A',
     lightIntensity: '#D97706',
+    vpd: '#C026D3',
+    waterTemp: '#0284C7',
+    co2: '#0F766E',
   },
   
   gradients: {
@@ -128,6 +140,9 @@ export const lightColors = {
     ec: ['#2563EB', '#1D4ED8'],
     waterLevel: ['#16A34A', '#15803D'],
     lightIntensity: ['#D97706', '#B45309'],
+    vpd: ['#C026D3', '#86198F'],
+    waterTemp: ['#0284C7', '#0369A1'],
+    co2: ['#0F766E', '#115E59'],
   },
 
   cardGradients: {
@@ -138,6 +153,9 @@ export const lightColors = {
     ec: ['rgba(37, 99, 235, 0.1)', 'rgba(37, 99, 235, 0.02)'],
     waterLevel: ['rgba(22, 163, 74, 0.1)', 'rgba(22, 163, 74, 0.02)'],
     lightIntensity: ['rgba(217, 119, 6, 0.1)', 'rgba(217, 119, 6, 0.02)'],
+    vpd: ['rgba(192, 38, 211, 0.1)', 'rgba(192, 38, 211, 0.02)'],
+    waterTemp: ['rgba(2, 132, 199, 0.1)', 'rgba(2, 132, 199, 0.02)'],
+    co2: ['rgba(15, 118, 110, 0.1)', 'rgba(15, 118, 110, 0.02)'],
   },
 
   successLight: 'rgba(22, 163, 74, 0.15)',

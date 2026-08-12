@@ -47,11 +47,7 @@ export default function ListingDetailScreen() {
   const { createOrder } = useOrders();
 
   const [isBuyModalVisible, setIsBuyModalVisible] = useState(false);
-  const [isUtrModalVisible, setIsUtrModalVisible] = useState(false);
-  const [utrNumber, setUtrNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('COD');
-  const [farmerUpiId, setFarmerUpiId] = useState(null);
-  const [loadingUpi, setLoadingUpi] = useState(false);
   const [buyQuantity, setBuyQuantity] = useState(1);
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -161,7 +157,7 @@ export default function ListingDetailScreen() {
       return;
     }
 
-    if (paymentMethod === 'UPI') {
+    if (paymentMethod === 'ONLINE') {
       if (Platform.OS !== 'web' && !RazorpayCheckout) {
         setCustomAlert({
            visible: true, title: 'Rebuild Required', message: 'Please rebuild the app (npx expo run:android) to use online payments. Use COD for now.',
@@ -202,7 +198,7 @@ export default function ListingDetailScreen() {
           description: `Payment for ${listing.title}`,
           image: imageUrl || 'https://via.placeholder.com/150',
           currency: 'INR',
-          key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mock_key',
+          key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_TOnbUVLiX5gQi8',
           amount: orderData.order.amount,
           name: 'HYGROW Marketplace',
           order_id: orderData.order.id,
@@ -325,8 +321,6 @@ export default function ListingDetailScreen() {
           onPress: () => {
             setCustomAlert(prev => ({ ...prev, visible: false }));
             setIsBuyModalVisible(false);
-            setIsUtrModalVisible(false);
-            setUtrNumber('');
             router.push('/(tabs)/orders');
           }
         }]
@@ -422,24 +416,10 @@ export default function ListingDetailScreen() {
               listing.stock > 0 ? styles.buyBtn : styles.disabledBtn,
               pressed && styles.pressed,
             ]}
-            onPress={async () => {
+            onPress={() => {
               if (listing.stock > 0) {
                 setIsBuyModalVisible(true);
                 setPaymentMethod('COD');
-                setFarmerUpiId(null);
-                if (listing.farmer_id) {
-                  setLoadingUpi(true);
-                  try {
-                    const userDoc = await getDoc(doc(db, 'users', listing.farmer_id));
-                    if (userDoc.exists()) {
-                      setFarmerUpiId(userDoc.data().upi_id || null);
-                    }
-                  } catch (err) {
-                    console.error("Failed to fetch farmer UPI:", err);
-                  } finally {
-                    setLoadingUpi(false);
-                  }
-                }
               }
             }}
             disabled={listing.stock <= 0}
@@ -569,22 +549,14 @@ export default function ListingDetailScreen() {
               <Pressable
                 style={[
                   styles.paymentOption, 
-                  paymentMethod === 'UPI' && styles.paymentOptionActive,
-                  (!farmerUpiId && !loadingUpi) && styles.paymentOptionDisabled
+                  paymentMethod === 'ONLINE' && styles.paymentOptionActive,
                 ]}
-                onPress={() => farmerUpiId && setPaymentMethod('UPI')}
-                disabled={!farmerUpiId && !loadingUpi}
+                onPress={() => setPaymentMethod('ONLINE')}
               >
-                <Text style={styles.paymentOptionEmoji}>📱</Text>
+                <Text style={styles.paymentOptionEmoji}>💳</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.paymentOptionText, paymentMethod === 'UPI' && styles.paymentOptionTextActive]}>UPI Payment</Text>
-                  {loadingUpi ? (
-                    <Text style={styles.upiInfoText}>Loading seller UPI...</Text>
-                  ) : farmerUpiId ? (
-                    <Text style={styles.upiInfoText}>Pay to: {farmerUpiId}</Text>
-                  ) : (
-                    <Text style={styles.upiInfoText}>Seller has not configured UPI</Text>
-                  )}
+                  <Text style={[styles.paymentOptionText, paymentMethod === 'ONLINE' && styles.paymentOptionTextActive]}>Pay Online (Razorpay)</Text>
+                  <Text style={styles.upiInfoText}>Secure online payment via credit/debit card, net banking, or UPI</Text>
                 </View>
               </Pressable>
             </View>
@@ -633,75 +605,7 @@ export default function ListingDetailScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* UTR Verification Modal */}
-      <Modal
-        visible={isUtrModalVisible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setIsUtrModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.centerOverlay}
-        >
-          <View style={styles.utrModalContainer}>
-            <Text style={styles.modalTitle}>Confirm UPI Payment</Text>
-            <Text style={styles.utrInstructions}>
-              Please complete the payment of <Text style={{fontWeight: 'bold'}}>{listing.currency}{(listing.price * buyQuantity).toFixed(2)}</Text> to UPI ID <Text style={{fontWeight: 'bold'}}>{farmerUpiId}</Text> in your UPI app and enter the 12-digit UTR (Transaction ID) below to place your order.
-            </Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>12-Digit UTR Number</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. 312345678901"
-                placeholderTextColor={themeColors.textMuted}
-                value={utrNumber}
-                onChangeText={setUtrNumber}
-                keyboardType="number-pad"
-                maxLength={12}
-              />
-            </View>
-
-            <View style={styles.modalActions}>
-              <Pressable 
-                style={({ pressed }) => [styles.modalCancelBtn, pressed && styles.pressed]}
-                onPress={() => setIsUtrModalVisible(false)}
-                disabled={placingOrder}
-              >
-                <Text style={styles.modalCancelBtnText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable 
-                style={({ pressed }) => [
-                  styles.modalConfirmBtn, 
-                  pressed && styles.pressed,
-                  utrNumber.length !== 12 && styles.disabledBtn
-                ]}
-                onPress={() => {
-                  if (utrNumber.length === 12) {
-                    handlePlaceOrder(utrNumber);
-                  } else {
-                    setCustomAlert({
-                      visible: true,
-                      title: 'Invalid UTR',
-                      message: 'Please enter a valid 12-digit UTR number.',
-                      buttons: [{ text: 'OK', onPress: () => setCustomAlert(prev => ({ ...prev, visible: false })) }]
-                    });
-                  }
-                }}
-                disabled={placingOrder || utrNumber.length !== 12}
-              >
-                {placingOrder ? (
-                  <ActivityIndicator color={themeColors.background} size="small" />
-                ) : (
-                  <Text style={styles.modalConfirmBtnText}>Confirm Order</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
       <CustomAlert 
         visible={customAlert.visible}

@@ -61,7 +61,7 @@ function OrderCard({ order, onPress }) {
         <View>
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.paymentMethodLabel}>
-            {order.payment_method === 'UPI' ? `📱 UPI UTR: ${order.transaction_id || 'Pending'}` : '💵 COD'}
+            {order.payment_method === 'ONLINE' ? `💳 Razorpay: ${order.transaction_id || 'Captured'}` : order.payment_method === 'UPI' ? `📱 UPI UTR: ${order.transaction_id || 'Pending'}` : '💵 COD'}
           </Text>
         </View>
         <Text style={styles.totalAmount}>₹{order.total_amount.toFixed(2)}</Text>
