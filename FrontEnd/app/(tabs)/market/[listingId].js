@@ -33,6 +33,7 @@ import { formatDate, getDefaultImage } from '../../../src/utils/helpers';
 import useOrders from '../../../src/hooks/useOrders';
 import useAppStore from '../../../src/store/useAppStore';
 import CustomAlert from '../../../src/components/CustomAlert';
+import { getBackendUrl } from '../../../src/utils/apiConfig';
 
 export default function ListingDetailScreen() {
   const { listingId } = useLocalSearchParams();
@@ -170,13 +171,7 @@ export default function ListingDetailScreen() {
       
       try {
         setPlacingOrder(true);
-        const hostUrl = Constants?.expoConfig?.hostUri 
-          ? Constants.expoConfig.hostUri.split(`:`)[0] 
-          : '10.0.2.2'; // default android emulator alias to localhost
-        
-        const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL 
-          ? `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/payment`
-          : `http://${hostUrl}:3000/api/payment`;
+        const backendUrl = `${getBackendUrl()}/api/payment`;
 
         // 1. Create order on backend
         const orderRes = await fetch(`${backendUrl}/create-order`, {

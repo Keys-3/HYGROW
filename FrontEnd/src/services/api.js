@@ -4,9 +4,10 @@
 
 import axios from 'axios';
 import Config from '../utils/config';
+import { getBackendUrl } from '../utils/apiConfig';
 
 const api = axios.create({
-  baseURL: Config.api.baseUrl,
+  baseURL: getBackendUrl(),
   timeout: Config.api.timeout,
   headers: {
     'Content-Type': 'application/json',

@@ -7,7 +7,7 @@ import { useThemeColors, spacing, borderRadius, typography } from '../../../src/
 import { formatDate, formatTime } from '../../../src/utils/helpers';
 import CustomAlert from '../../../src/components/CustomAlert';
 
-type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'returned';
 
 const getStatusConfig = (colors: any): Record<OrderStatus, { color: string; label: string; description: string }> => ({
   pending: { color: colors.warning, label: 'Pending', description: 'Order placed, awaiting confirmation' },
@@ -16,6 +16,7 @@ const getStatusConfig = (colors: any): Record<OrderStatus, { color: string; labe
   out_for_delivery: { color: colors.info, label: 'Out for Delivery', description: 'Order is out for delivery' },
   delivered: { color: colors.success, label: 'Delivered', description: 'Order delivered successfully' },
   cancelled: { color: colors.danger, label: 'Cancelled', description: 'Order has been cancelled' },
+  returned: { color: colors.warning, label: 'Returned', description: 'Item has been returned' },
 });
 
 const STATUS_FLOW: OrderStatus[] = ['pending', 'confirmed', 'processing', 'out_for_delivery', 'delivered'];
@@ -67,9 +68,10 @@ export default function OrderDetailScreen() {
   const isCustomer = user?.role === 'customer';
   const isSeller = order.items?.some(item => item.seller_id === user?.id);
   const isAdmin = user?.role === 'admin';
-  const canCancel = (isCustomer || isSeller) && (order.status === 'pending' || order.status === 'confirmed');
-  const canUpdateStatus = (isSeller || isAdmin) && order.status !== 'delivered' && order.status !== 'cancelled';
-  const canDelete = (order.status === 'delivered' || order.status === 'cancelled') && (isCustomer || isSeller || isAdmin);
+  const canCancel = (isCustomer || isSeller || isAdmin) && (order.status !== 'delivered' && order.status !== 'cancelled' && order.status !== 'returned');
+  const canUpdateStatus = (isSeller || isAdmin) && order.status !== 'delivered' && order.status !== 'cancelled' && order.status !== 'returned';
+  const canReturn = (isCustomer || isSeller || isAdmin) && order.status === 'delivered';
+  const canDelete = (order.status === 'delivered' || order.status === 'cancelled' || order.status === 'returned') && (isCustomer || isSeller || isAdmin);
 
   const handleCancel = () => {
     setCustomAlert({
@@ -90,6 +92,43 @@ export default function OrderDetailScreen() {
                 visible: true,
                 title: 'Success',
                 message: 'Order has been cancelled',
+                buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
+              });
+            } catch (err: any) {
+              setCustomAlert({
+                visible: true,
+                title: 'Error',
+                message: err.message,
+                buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
+              });
+            } finally {
+              setUpdating(false);
+            }
+          }
+        }
+      ]
+    });
+  };
+
+  const handleReturn = () => {
+    setCustomAlert({
+      visible: true,
+      title: 'Return Item',
+      message: 'Are you sure you want to return this item?',
+      buttons: [
+        { text: 'No, Keep Item', style: 'cancel', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) },
+        {
+          text: 'Yes, Return',
+          style: 'destructive',
+          onPress: async () => {
+            setCustomAlert((prev: any) => ({ ...prev, visible: false }));
+            try {
+              setUpdating(true);
+              await updateOrderStatus(order.id, 'returned', 'Item returned by user');
+              setCustomAlert({
+                visible: true,
+                title: 'Success',
+                message: 'Item has been returned',
                 buttons: [{ text: 'OK', onPress: () => setCustomAlert((prev: any) => ({ ...prev, visible: false })) }]
               });
             } catch (err: any) {
@@ -319,6 +358,14 @@ export default function OrderDetailScreen() {
           <Pressable style={[styles.actionBtn, styles.cancelBtn]} onPress={handleCancel} disabled={updating || isSimulating}>
             {updating ? <ActivityIndicator color={themeColors.danger} /> : (
               <Text style={styles.cancelBtnText}>Cancel Order</Text>
+            )}
+          </Pressable>
+        )}
+
+        {canReturn && (
+          <Pressable style={[styles.actionBtn, styles.returnBtn]} onPress={handleReturn} disabled={updating || isSimulating}>
+            {updating ? <ActivityIndicator color={themeColors.warning} /> : (
+              <Text style={styles.returnBtnText}>Return Item</Text>
             )}
           </Pressable>
         )}
@@ -662,6 +709,16 @@ const createStyles = (colors: any) => StyleSheet.create({
   cancelBtnText: {
     ...typography.body,
     color: colors.danger,
+    fontWeight: '600',
+  },
+  returnBtn: {
+    backgroundColor: colors.warning + '20',
+    borderWidth: 1,
+    borderColor: colors.warning + '40',
+  },
+  returnBtnText: {
+    ...typography.body,
+    color: colors.warning,
     fontWeight: '600',
   },
   updateBtn: {

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useThemeColors, spacing, borderRadius, typography, shadows } from '../src/theme/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../src/services/api';
+import { getBackendUrl } from '../src/utils/apiConfig';
 
 export default function ContactTeamScreen() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function ContactTeamScreen() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const TABS = [
     { key: 'team', label: 'Our Team' },
@@ -38,18 +40,33 @@ export default function ContactTeamScreen() {
 
     setIsSending(true);
     try {
-      await api.post('/api/email/send', {
-        to: 'prithvis3804@gmail.com',
-        subject: subject,
-        text: `From: ${name} (${email})\n\nMessage:\n${message}`,
-        replyTo: email
-      });
+      const url = `${getBackendUrl()}/api/email/send`;
+      console.log(`[Contact Form] Sending email to: ${url}`);
       
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: 'prithvis3804@gmail.com',
+          subject: subject,
+          text: `From: ${name} (${email})\n\nMessage:\n${message}`,
+          replyTo: email
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+
       Alert.alert('Success', 'Your message has been sent to our team!');
+      setSuccessMessage('Your message has been sent to our team!');
       setName('');
       setEmail('');
       setSubject('');
       setMessage('');
+      setTimeout(() => setSuccessMessage(''), 5000);
     } catch (error) {
       console.error('Error sending email:', error);
       Alert.alert('Error', 'Failed to send message. Please try again later.');
@@ -92,6 +109,12 @@ export default function ContactTeamScreen() {
     <View style={styles.tabContent}>
       <Text style={styles.sectionHeader}>Get In Touch</Text>
       <Text style={styles.sectionDesc}>Fill out the form below to send us an email directly.</Text>
+
+      {!!successMessage && (
+        <View style={styles.successContainer}>
+          <Text style={styles.successText}>{successMessage}</Text>
+        </View>
+      )}
 
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Your Name</Text>
@@ -356,6 +379,20 @@ const createStyles = (theme) => StyleSheet.create({
     ...typography.caption,
     color: theme.textSecondary,
     textAlign: 'center',
+  },
+  successContainer: {
+    backgroundColor: theme.success + '20',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.success + '50',
+  },
+  successText: {
+    ...typography.body,
+    color: theme.success,
+    textAlign: 'center',
+    fontWeight: '600',
   },
   inputGroup: {
     marginBottom: spacing.lg,

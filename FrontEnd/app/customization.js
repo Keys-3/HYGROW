@@ -38,6 +38,9 @@ export default function CustomizationScreen() {
         { key: 'ec', label: 'TDS / EC' },
         { key: 'waterLevel', label: 'Water Level' },
         { key: 'lightIntensity', label: 'Light Intensity' },
+        { key: 'vpd', label: 'VPD' },
+        { key: 'waterTemp', label: 'Water Temp' },
+        { key: 'co2', label: 'CO2 Levels' },
       ],
     },
     {

@@ -71,7 +71,8 @@ router.post('/refund', async (req, res) => {
     res.json({ success: true, refund });
   } catch (error) {
     console.error('Razorpay Refund Error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    const errorMsg = error.message || (error.error && error.error.description) || 'An unknown error occurred during refund processing';
+    res.status(500).json({ success: false, message: errorMsg });
   }
 });
 

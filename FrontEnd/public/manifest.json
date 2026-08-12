@@ -1,0 +1,22 @@
+{
+  "short_name": "HyGrow",
+  "name": "HyGrow Farm Help",
+  "icons": [
+    {
+      "src": "/assets/images/hygrow-icon.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/assets/images/hygrow-icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0F172A",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#0F172A",
+  "description": "An advanced agentic coding farm helper application"
+}

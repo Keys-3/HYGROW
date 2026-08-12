@@ -14,6 +14,7 @@ const getStatusConfig = (colors) => ({
   shipped: { color: colors.info, label: 'Shipped', icon: 'Shipped' },
   delivered: { color: colors.success, label: 'Delivered', icon: 'Delivered' },
   cancelled: { color: colors.danger, label: 'Cancelled', icon: 'Cancelled' },
+  returned: { color: colors.warning, label: 'Returned', icon: 'Returned' },
 });
 
 function OrderCard({ order, onPress }) {

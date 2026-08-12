@@ -14,19 +14,35 @@ import { useMemo } from 'react';
 import useAppStore from '../store/useAppStore';
 import { useThemeColors } from '../theme/theme';
 
-const getNavItems = (role: string) => [
-  { name: 'Dashboard', icon: House, href: '/dashboard', roles: ['farmer', 'admin'] },
-  { name: 'AI Tools', icon: Bot, href: '/ai', roles: ['farmer', 'admin'] },
-  { name: 'Inventory', icon: Warehouse, href: '/inventory', roles: ['farmer', 'admin'] },
-  { name: 'Analytics', icon: BarChart3, href: '/analytics', roles: ['farmer', 'admin'] },
-  { name: 'Market', icon: ShoppingCart, href: '/market', roles: ['customer', 'admin'] },
-  { name: 'Orders', icon: Package, href: '/orders', roles: ['customer', 'admin'] },
-  { name: 'Setting', icon: Settings, href: '/settings', roles: ['farmer', 'customer', 'admin'] },
-].filter(item => item.roles.includes(role));
+const getNavItems = (role: string, features: any) => {
+  const items = [
+    { name: 'Dashboard', icon: House, href: '/dashboard', roles: ['farmer', 'admin'], featureKey: 'sensors' },
+    { name: 'AI Tools', icon: Bot, href: '/ai', roles: ['farmer', 'admin'], featureKey: 'aiTools' },
+    { name: 'Market', icon: ShoppingCart, href: '/market', roles: ['customer', 'admin'] },
+    { name: 'Inventory', icon: Warehouse, href: '/inventory', roles: ['farmer', 'admin'], featureKey: 'inventory' },
+    { name: 'Orders', icon: Package, href: '/orders', roles: ['customer', 'admin'] },
+    { name: 'Analytics', icon: BarChart3, href: '/analytics', roles: ['farmer', 'admin'], featureKey: 'analytics' },
+    { name: 'Setting', icon: Settings, href: '/settings', roles: ['farmer', 'customer', 'admin'] },
+  ];
+
+  return items.filter(item => {
+    // 1. Must match role
+    if (!item.roles.includes(role)) return false;
+    
+    // 2. If it's a feature-gated tab and user is farmer/admin, check if feature is enabled
+    if (item.featureKey && (role === 'farmer' || role === 'admin')) {
+      if (!features || !features[item.featureKey]?.enabled) {
+        return false;
+      }
+    }
+    return true;
+  });
+};
 
 export function Sidebar() {
   const pathname = usePathname();
   const user = useAppStore(state => state.user);
+  const farmerFeatures = useAppStore(state => state.farmerFeatures);
   const themeColors = useThemeColors();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
@@ -34,7 +50,7 @@ export function Sidebar() {
     return null;
   }
 
-  const navItems = getNavItems(user.role);
+  const navItems = getNavItems(user.role, farmerFeatures);
 
   return (
     <View style={styles.container}>

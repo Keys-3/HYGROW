@@ -16,6 +16,9 @@ export interface SettingsSlice {
       ec: boolean;
       waterLevel: boolean;
       lightIntensity: boolean;
+      vpd: boolean;
+      waterTemp: boolean;
+      co2: boolean;
     };
     aiTools: {
       enabled: boolean;
@@ -49,6 +52,9 @@ export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
       ec: true,
       waterLevel: true,
       lightIntensity: true,
+      vpd: true,
+      waterTemp: true,
+      co2: true,
     },
     aiTools: {
       enabled: true,

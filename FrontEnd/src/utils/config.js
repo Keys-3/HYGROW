@@ -4,6 +4,7 @@
  * Manages environment variables and application constants.
  * Provides type safety and default values.
  */
+import { getBackendUrl } from './apiConfig';
 
 const Config = {
   // Firebase
@@ -17,9 +18,8 @@ const Config = {
     measurementId: "G-45ERXPGKTZ"
   },
 
-  // API
   api: {
-    baseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || 'https://your-farm-api.onrender.com',
+    baseUrl: getBackendUrl(),
     timeout: 10000,
   },
 
