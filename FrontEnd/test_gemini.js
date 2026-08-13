@@ -1,9 +1,9 @@
 const axios = require('axios');
 
 async function test() {
-  const apiKey = 'invalid_key';
-  const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/this-model-does-not-exist:generateContent';
-  
+  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'invalid_key';
+  const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
+
   try {
     const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
       contents: [{ role: 'user', parts: [{ text: 'Hello' }] }],
