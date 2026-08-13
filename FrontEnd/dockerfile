@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Expo CLI
-RUN npm install -g expo-cli
+RUN npm install -g expo-cli @expo/ngrok
 
 # Copy package files first
 COPY package*.json ./

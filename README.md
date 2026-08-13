@@ -166,6 +166,27 @@ HyGrow/
 - (Optional) **EAS CLI** for native builds
 - (Optional) **Docker** for containerized development
 
+---------------------- ## Docker Container to Run App ----------------------------------
+### 🐳 Docker (Recommended Quick Start)
+
+Run the entire full-stack application (Frontend + Backend) without installing any local dependencies or configuring environment variables manually:
+
+```bash
+# 1. Build the image
+docker build -t hygrow-app .
+
+# 2. Run the container (Interactive mode is required to see the Expo QR code)
+docker run -it -p 3000:3000 -p 8081:8081 -p 19000:19000 -p 19001:19001 -p 19002:19002 hygrow-app
+```
+
+- **Mobile App**: Scan the QR code shown in the terminal with the **Expo Go** app to test on any device (works from anywhere via tunnel).
+- **Web App**: Open `http://localhost:8081` in your browser.
+- **Backend API**: Running on `http://localhost:3000`.
+
+---
+
+
+
 ### 1️⃣ Backend Setup & Installation
 
 1. Navigate to the backend directory:
@@ -220,14 +241,6 @@ HyGrow/
 
    Scan the QR code with **Expo Go** (for development) or use a **development build** (`expo-dev-client`) for full native module support.
 
-### Docker (Development - Frontend)
-```bash
-cd FrontEnd
-docker build -t hygrow .
-docker run -p 8081:8081 -p 19000-19002:19000-19002 hygrow
-```
-
----
 
 ## 📡 API Endpoints (Backend Node.js API)
 
