@@ -38,6 +38,10 @@ RUN npm run install-all
 # Copy the rest of the application code
 COPY . .
 
+# Change ownership to the node user and switch to it
+RUN chown -R node:node /app
+USER node
+
 # Expose backend port
 EXPOSE 3000
 
