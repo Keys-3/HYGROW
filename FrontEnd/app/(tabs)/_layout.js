@@ -147,8 +147,9 @@ export default function TabLayout() {
 
   const isLargeScreen = width >= 1024;
   const isTablet = width >= 768 && width < 1024;
+  const isDesktopOrTablet = isLargeScreen || isTablet;
 
-  const baseHeight = isTablet ? 80 : 64;
+  const baseHeight = 64;
   const tabBarHeight = baseHeight + insets.bottom;
 
   // Show loading while auth state is being determined
@@ -192,10 +193,10 @@ export default function TabLayout() {
 
   const tabs = getTabsForRole();
 
-  if (isLargeScreen) {
+  if (isDesktopOrTablet) {
     return (
       <View style={[styles.desktopContainer, { backgroundColor: themeColors.background }]}>
-        <Sidebar />
+        <Sidebar isCollapsed={isTablet} />
         <View style={styles.content}>
           <Tabs
             sceneContainerStyle={{ backgroundColor: 'transparent' }}
@@ -242,7 +243,6 @@ export default function TabLayout() {
           title: 'Dashboard',
           tabBarIcon: ({ focused }) => <TabIcon Icon={Home} label="Home" focused={focused} />,
           tabBarItemStyle: (userRole === 'customer' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.sensors.enabled)) ? { display: 'none' } : undefined,
-          tabBarStyle: (userRole === 'customer' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.sensors.enabled)) ? { display: 'none' } : undefined,
         }}
         listeners={{
           tabPress: (e) => {

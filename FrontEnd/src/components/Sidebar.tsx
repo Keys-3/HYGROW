@@ -39,7 +39,11 @@ const getNavItems = (role: string, features: any) => {
   });
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  isCollapsed?: boolean;
+}
+
+export function Sidebar({ isCollapsed = false }: SidebarProps) {
   const pathname = usePathname();
   const user = useAppStore(state => state.user);
   const farmerFeatures = useAppStore(state => state.farmerFeatures);
@@ -53,18 +57,22 @@ export function Sidebar() {
   const navItems = getNavItems(user.role, farmerFeatures);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, isCollapsed && styles.containerCollapsed]}>
+      <View style={[styles.header, isCollapsed && styles.headerCollapsed]}>
         <Image
             source={require('../../assets/images/logo.png')}
-            style={styles.logo}
+            style={[styles.logo, isCollapsed && styles.logoCollapsed]}
           />
-        <Text style={styles.title}>HyGrow</Text>
+        {!isCollapsed && (
+          <>
+            <Text style={styles.title}>HyGrow</Text>
 
-        <View style={styles.userBadge}>
-          <Text style={styles.userName}>{user.name}</Text>
-          <Text style={styles.userRole}>{user.role}</Text>
-        </View>
+            <View style={styles.userBadge}>
+              <Text style={styles.userName}>{user.name}</Text>
+              <Text style={styles.userRole}>{user.role}</Text>
+            </View>
+          </>
+        )}
       </View>
 
       <View style={styles.nav}>
@@ -82,20 +90,23 @@ export function Sidebar() {
               style={[
                 styles.navItem,
                 isActive && styles.navItemActive,
+                isCollapsed && styles.navItemCollapsed,
               ]}
             >
               <Icon
-                size={20}
+                size={isCollapsed ? 24 : 20}
                 color={isActive ? themeColors.primary : themeColors.textMuted}
               />
-              <Text
-                style={[
-                  styles.navText,
-                  isActive && styles.navTextActive,
-                ]}
-              >
-                {item.name}
-              </Text>
+              {!isCollapsed && (
+                <Text
+                  style={[
+                    styles.navText,
+                    isActive && styles.navTextActive,
+                  ]}
+                >
+                  {item.name}
+                </Text>
+              )}
             </Link>
           );
         })}
@@ -112,13 +123,29 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: colors.border,
     padding: 20,
+    transitionDuration: '0.3s',
+    transitionProperty: 'width',
+  },
+  containerCollapsed: {
+    width: 80,
+    padding: 10,
+    alignItems: 'center',
   },
   header: {
     marginBottom: 40,
   },
+  headerCollapsed: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
   logo: {
     width: 80,
     height: 80,
+  },
+  logoCollapsed: {
+    width: 40,
+    height: 40,
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
@@ -150,6 +177,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     gap: 12,
+  },
+  navItemCollapsed: {
+    justifyContent: 'center',
+    padding: 12,
   },
   navItemActive: {
     backgroundColor: colors.primary + '20',

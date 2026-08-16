@@ -187,59 +187,44 @@ docker run -it -p 3000:3000 -p 8081:8081 -p 19000:19000 -p 19001:19001 -p 19002:
 
 
 
-### 1️⃣ Backend Setup & Installation
+### Local Installation & Setup (Ordered Steps)
 
-1. Navigate to the backend directory:
+1. **Install All Dependencies**  
+   From the root of the project, run the following command to install dependencies for both the root workspace, frontend, and backend simultaneously:
    ```bash
-   cd BackEnd
-   npm install
+   npm run install-all
    ```
 
-2. Configure Environment Variables:
-   Create a `.env` file in the root of the `BackEnd` directory:
-   ```env
-   PORT=3000
-   HF_SPACE=sam120904/hydro-disease-detector
-   ```
+2. **Configure Environment Variables**  
+   - **Backend**: Create a `.env` file in the `BackEnd/` directory:
+     ```env
+     PORT=3000
+     Hugging Face URL for AI models
+     SMTP Setup for messaging
+     Razorpay Gateway API Key for Payment
+     ```
+   - **Frontend**: Create a `.env` file in the `FrontEnd/` directory (see `.env.example`):
+     ```env
+     (Optional)
+     EXPO_PUBLIC_API_BASE_URL=https://farm-help-383f1.firebaseio.com/ 
+     (BackEnd URL Mandatory)
+     EXPO_PUBLIC_BACKEND_URL=https://hygrow.onrender.com
+     (Gemini API Key for Chatbots)
+     ```
 
-3. Start the server:
+3. **Start the Application**  
+   Run both the frontend and backend concurrently in development mode from the root directory:
    ```bash
-   npm run dev   # For development (with watch mode)
-   npm start     # For production
+   npm run dev
    ```
+   *(This uses `concurrently` to start the Node.js server on port 3000 and the Expo dev server on port 8081 together).*
 
-### 2️⃣ Frontend Setup & Installation
-
-1. Open a new terminal and navigate to the frontend directory:
+   Alternatively, for production mode:
    ```bash
-   cd FrontEnd
-   npm install
-
-   # Install Firebase Functions dependencies (if deploying functions)
-   cd functions && npm install && cd ..
+   npm start
    ```
 
-2. Configure Environment Variables:
-   Create a `.env` file in the frontend root (see `.env.example`):
-   ```env
-   # Optional — IoT / backend API base URL
-   EXPO_PUBLIC_API_BASE_URL=https://your-farm-api.onrender.com
-   
-   # Required for AI features (disease detection, growth prediction)
-   EXPO_PUBLIC_BACKEND_URL=http://localhost:3000
-   ```
-   *Note: Firebase configuration is initialized in `firebase.ts`.*
-
-3. Start the app:
-   ```bash
-   npm start          # Start Expo dev server
-   npm run ios        # iOS simulator / device
-   npm run android    # Android emulator / device
-   npm run web        # Web browser
-   npm run build:web  # Export static web build
-   ```
-
-   Scan the QR code with **Expo Go** (for development) or use a **development build** (`expo-dev-client`) for full native module support.
+   Scan the QR code printed in the terminal with **Expo Go** (for development) or use a **development build** (`expo-dev-client`) for full native module support.
 
 
 ## 📡 API Endpoints (Backend Node.js API)
@@ -392,10 +377,9 @@ Build profiles are defined in `eas.json` (`development`, `preview`, `production`
 
 | S.No | Name | Email |
 | :--- | :--- | :--- |
-| 1 | Prithvi Singh | [140890501+Keys-3@users.noreply.github.com](mailto:140890501+Keys-3@users.noreply.github.com) |
-| 2 | Vaibhav Sharma | |
-| 3 | Samarth Sharma | |
-| 4 | Samyak Jain | |
+| 1 | Prithvi Singh | [prithvis3804@gmail.com] |
+| 2 | Vaibhav Sharma | [vaibhavsh0120@gmail.com] |
+| 3 | Samarth Sharma | [samarth120904@gmail.com] |
 
 ---
 
