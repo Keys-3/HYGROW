@@ -20,6 +20,10 @@ export interface User {
   experience?: string;
   upi_id?: string;
   created_at?: string;
+  preferences?: {
+    isDarkMode?: boolean;
+    farmerFeatures?: any;
+  };
 }
 
 export interface AuthSlice {

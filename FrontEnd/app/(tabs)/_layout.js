@@ -22,6 +22,8 @@ import { useThemeColors, colors } from '../../src/theme/theme';
 import useAppStore from '../../src/store/useAppStore';
 import { SENSOR_KEYS, SENSOR_THRESHOLDS, SENSOR_CONFIG, DEFAULT_SENSOR_DATA } from '../../src/utils/constants';
 import { getSensorStatus, formatSensorValue } from '../../src/utils/helpers';
+import { db } from '../../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 // Tab bar icon component using Lucide icons
 function TabIcon({ Icon, label, focused }) {
@@ -78,7 +80,7 @@ export default function TabLayout() {
     if (!authInitialized) return;
 
     if (!isAuthenticated) {
-      router.replace('/(auth)/login');
+      router.replace('/(auth)');
     }
   }, [authInitialized, isAuthenticated, router]);
 
@@ -87,6 +89,26 @@ export default function TabLayout() {
   const updateSensorData = useAppStore((s) => s.updateSensorData);
   const addAlert = useAppStore((s) => s.addAlert);
   const farmerFeatures = useAppStore((s) => s.farmerFeatures);
+
+  // Real-time preferences sync from Firestore
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    
+    const unsubscribe = onSnapshot(doc(db, 'users', user.id), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.preferences) {
+          // Temporarily disable the persist middleware from writing back during this sync
+          useAppStore.setState({
+            ...(data.preferences.farmerFeatures && { farmerFeatures: data.preferences.farmerFeatures }),
+            ...(data.preferences.isDarkMode !== undefined && { isDarkMode: data.preferences.isDarkMode })
+          });
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [isAuthenticated, user?.id]);
 
   // Global sensor data simulator & alert monitoring loop
   useEffect(() => {

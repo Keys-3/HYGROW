@@ -87,8 +87,16 @@ export default function useAuth() {
               farm_location: data.farm_location,
               upi_id: data.upi_id,
               created_at: data.createdAt?.toDate?.()?.toISOString?.(),
+              preferences: data.preferences,
             };
             storeLogin(userData);
+
+            if (data.preferences) {
+              useAppStore.setState({
+                ...(data.preferences.farmerFeatures && { farmerFeatures: data.preferences.farmerFeatures }),
+                ...(data.preferences.isDarkMode !== undefined && { isDarkMode: data.preferences.isDarkMode })
+              });
+            }
           } else {
             // User exists in Firebase Auth but not in Firestore
             // Create a basic profile
@@ -190,8 +198,16 @@ export default function useAuth() {
           farm_location: data.farm_location,
           upi_id: data.upi_id,
           created_at: data.createdAt?.toDate?.()?.toISOString?.(),
+          preferences: data.preferences,
         };
         storeLogin(userData);
+
+        if (data.preferences) {
+          useAppStore.setState({
+            ...(data.preferences.farmerFeatures && { farmerFeatures: data.preferences.farmerFeatures }),
+            ...(data.preferences.isDarkMode !== undefined && { isDarkMode: data.preferences.isDarkMode })
+          });
+        }
       } else {
         const userData: User = {
           id: userCredential.user.uid,

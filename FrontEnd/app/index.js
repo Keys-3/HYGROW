@@ -27,7 +27,7 @@ export default function Index() {
         router.replace('/(tabs)/dashboard');
       }
     } else {
-      router.replace('/(auth)/login');
+      router.replace('/(auth)');
     }
   }, [authInitialized, isAuthenticated, user, router]);
 

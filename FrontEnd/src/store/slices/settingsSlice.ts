@@ -1,4 +1,7 @@
 import { StateCreator } from 'zustand';
+import { StoreState } from '../useAppStore';
+import { db } from '../../../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 export interface SettingsSlice {
   isDarkMode: boolean;
@@ -36,9 +39,21 @@ export interface SettingsSlice {
   toggleFarmerSubFeature: (category: 'sensors' | 'aiTools', feature: string) => void;
 }
 
-export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
+export const createSettingsSlice: StateCreator<StoreState, [], [], SettingsSlice> = (set, get) => ({
   isDarkMode: true, // Default to dark mode as it's the premium theme
-  toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
+  toggleTheme: async () => {
+    set((state) => ({ isDarkMode: !state.isDarkMode }));
+    const userId = get().user?.id;
+    if (userId) {
+      try {
+        await updateDoc(doc(db, 'users', userId), {
+          'preferences.isDarkMode': get().isDarkMode
+        });
+      } catch (err) {
+        console.error('Failed to sync theme preference:', err);
+      }
+    }
+  },
   adminSelectedFarmerId: null,
   setAdminSelectedFarmerId: (id) => set({ adminSelectedFarmerId: id }),
   adminSelectedCustomerId: null,
@@ -68,22 +83,48 @@ export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
       enabled: true,
     },
   },
-  toggleFarmerFeature: (category) => set((state) => ({
-    farmerFeatures: {
-      ...state.farmerFeatures,
-      [category]: {
-        ...state.farmerFeatures[category],
-        enabled: !state.farmerFeatures[category].enabled
+  toggleFarmerFeature: async (category) => {
+    set((state) => ({
+      farmerFeatures: {
+        ...state.farmerFeatures,
+        [category]: {
+          ...state.farmerFeatures[category],
+          enabled: !state.farmerFeatures[category].enabled
+        }
+      }
+    }));
+    
+    const userId = get().user?.id;
+    if (userId) {
+      try {
+        await updateDoc(doc(db, 'users', userId), {
+          'preferences.farmerFeatures': get().farmerFeatures
+        });
+      } catch (err) {
+        console.error('Failed to sync farmer features:', err);
       }
     }
-  })),
-  toggleFarmerSubFeature: (category, feature) => set((state) => ({
-    farmerFeatures: {
-      ...state.farmerFeatures,
-      [category]: {
-        ...state.farmerFeatures[category],
-        [feature]: !state.farmerFeatures[category][feature]
+  },
+  toggleFarmerSubFeature: async (category, feature) => {
+    set((state) => ({
+      farmerFeatures: {
+        ...state.farmerFeatures,
+        [category]: {
+          ...state.farmerFeatures[category],
+          [feature]: !state.farmerFeatures[category][feature]
+        }
+      }
+    }));
+    
+    const userId = get().user?.id;
+    if (userId) {
+      try {
+        await updateDoc(doc(db, 'users', userId), {
+          'preferences.farmerFeatures': get().farmerFeatures
+        });
+      } catch (err) {
+        console.error('Failed to sync farmer features:', err);
       }
     }
-  })),
+  },
 });
