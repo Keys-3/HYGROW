@@ -63,7 +63,13 @@ export default function MarketScreen() {
 
   const farmersList = adminUsers.filter(u => u.role === 'farmer' || u.role === 'admin');
 
+  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+
   const navigateToDetail = (id) => {
+    if (!isAuthenticated) {
+      router.push('/(auth)');
+      return;
+    }
     router.push(`/(tabs)/market/${id}`);
   };
 
@@ -73,10 +79,24 @@ export default function MarketScreen() {
         ListHeaderComponent={(
           <>
             <View style={styles.header}>
-              <Text style={styles.title}>🛒 Marketplace</Text>
-              <Text style={styles.subtitle}>
-                Fresh produce from local hydroponic farms
-              </Text>
+              <View style={styles.headerTopRow}>
+                <View style={styles.headerTextContainer}>
+                  <Text style={styles.title}>🛒 Marketplace</Text>
+                  <Text style={styles.subtitle}>
+                    Fresh produce from local farms
+                  </Text>
+                </View>
+                {!isAuthenticated && (
+                  <View style={styles.authActions}>
+                    <Pressable style={[styles.authBtn, { marginRight: spacing.sm, backgroundColor: 'transparent', borderWidth: 0 }]} onPress={() => router.push('/home')}>
+                      <Text style={styles.authBtnText}>⌂ Home</Text>
+                    </Pressable>
+                    <Pressable style={styles.authBtn} onPress={() => router.push('/(auth)')}>
+                      <Text style={styles.authBtnText}>Sign In</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
             </View>
 
             <View style={styles.searchContainer}>
@@ -179,8 +199,37 @@ const createStyles = (colors) => StyleSheet.create({
   },
   header: {
     padding: spacing.lg,
-    paddingTop: 60,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.sm,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTextContainer: {
+    flex: 1,
+    paddingRight: spacing.sm,
+  },
+  authActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  authBtn: {
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.primary + '50',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  authBtnText: {
+    ...typography.bodySmall,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.5,
   },
   title: {
     ...typography.h1,

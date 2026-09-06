@@ -52,12 +52,12 @@ function RoleGuard({ children, userRole, targetRole }) {
   const themeColors = useThemeColors();
 
   useEffect(() => {
-    if (userRole === 'customer' && targetRole !== 'customer') {
+    if ((userRole === 'customer' || userRole === 'guest') && targetRole !== 'customer') {
       router.replace('/(tabs)/market');
     }
   }, [userRole, targetRole, pathname, router]);
 
-  if (userRole === 'customer' && targetRole !== 'customer') {
+  if ((userRole === 'customer' || userRole === 'guest') && targetRole !== 'customer') {
     return (
       <View style={[styles.guardContainer, { backgroundColor: themeColors.background }]}>
         <ActivityIndicator size="large" color={themeColors.primary} />
@@ -78,13 +78,9 @@ export default function TabLayout() {
   useEffect(() => {
     // Wait for auth to initialize before redirecting
     if (!authInitialized) return;
+  }, [authInitialized, router]);
 
-    if (!isAuthenticated) {
-      router.replace('/(auth)');
-    }
-  }, [authInitialized, isAuthenticated, router]);
-
-  const userRole = user?.role || 'farmer';
+  const userRole = user?.role || 'guest';
 
   const updateSensorData = useAppStore((s) => s.updateSensorData);
   const addAlert = useAppStore((s) => s.addAlert);
@@ -94,18 +90,27 @@ export default function TabLayout() {
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
     
-    const unsubscribe = onSnapshot(doc(db, 'users', user.id), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.preferences) {
-          // Temporarily disable the persist middleware from writing back during this sync
-          useAppStore.setState({
-            ...(data.preferences.farmerFeatures && { farmerFeatures: data.preferences.farmerFeatures }),
-            ...(data.preferences.isDarkMode !== undefined && { isDarkMode: data.preferences.isDarkMode })
-          });
+    const unsubscribe = onSnapshot(
+      doc(db, 'users', user.id),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.preferences) {
+            // Temporarily disable the persist middleware from writing back during this sync
+            useAppStore.setState({
+              ...(data.preferences.farmerFeatures && { farmerFeatures: data.preferences.farmerFeatures }),
+              ...(data.preferences.isDarkMode !== undefined && { isDarkMode: data.preferences.isDarkMode })
+            });
+          }
+        }
+      },
+      (error) => {
+        // Ignore permission-denied errors that occur naturally during signout
+        if (error.code !== 'permission-denied') {
+          console.warn('Preferences sync error:', error);
         }
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [isAuthenticated, user?.id]);
@@ -175,7 +180,7 @@ export default function TabLayout() {
   const tabBarHeight = baseHeight + insets.bottom;
 
   // Show loading while auth state is being determined
-  if (!authInitialized || authLoading || !isAuthenticated) {
+  if (!authInitialized || authLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
         <ActivityIndicator size="large" color={themeColors.primary} />
@@ -196,11 +201,13 @@ export default function TabLayout() {
         { name: 'settings', title: 'Setting', Icon: Settings, label: 'Setting', role: 'admin' },
       ];
     }
-    if (userRole === 'customer') {
+    if (userRole === 'customer' || userRole === 'guest') {
       return [
-        { name: 'market', title: 'Market', Icon: ShoppingCart, label: 'Market', role: 'customer' },
-        { name: 'orders', title: 'Orders', Icon: Package, label: 'Orders', role: 'customer' },
-        { name: 'settings', title: 'Setting', Icon: Settings, label: 'Setting', role: 'customer' },
+        { name: 'market', title: 'Market', Icon: ShoppingCart, label: 'Market', role: userRole },
+        ...(userRole === 'customer' ? [
+          { name: 'orders', title: 'Orders', Icon: Package, label: 'Orders', role: 'customer' },
+          { name: 'settings', title: 'Setting', Icon: Settings, label: 'Setting', role: 'customer' },
+        ] : []),
       ];
     }
 
@@ -264,11 +271,11 @@ export default function TabLayout() {
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ focused }) => <TabIcon Icon={Home} label="Home" focused={focused} />,
-          tabBarItemStyle: (userRole === 'customer' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.sensors.enabled)) ? { display: 'none' } : undefined,
+          tabBarItemStyle: (userRole === 'customer' || userRole === 'guest' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.sensors.enabled)) ? { display: 'none' } : undefined,
         }}
         listeners={{
           tabPress: (e) => {
-            if (userRole === 'customer') {
+            if (userRole === 'customer' || userRole === 'guest') {
               e.preventDefault();
               router.replace('/(tabs)/market');
             }
@@ -281,11 +288,11 @@ export default function TabLayout() {
         options={{
           title: 'AI Tools',
           tabBarIcon: ({ focused }) => <TabIcon Icon={Bot} label="AI" focused={focused} />,
-          tabBarItemStyle: (userRole === 'customer' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.aiTools.enabled)) ? { display: 'none' } : undefined,
+          tabBarItemStyle: (userRole === 'customer' || userRole === 'guest' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.aiTools.enabled)) ? { display: 'none' } : undefined,
         }}
         listeners={{
           tabPress: (e) => {
-            if (userRole === 'customer') {
+            if (userRole === 'customer' || userRole === 'guest') {
               e.preventDefault();
               router.replace('/(tabs)/market');
             }
@@ -298,11 +305,11 @@ export default function TabLayout() {
         options={{
           title: 'Inventory',
           tabBarIcon: ({ focused }) => <TabIcon Icon={Warehouse} label="Stock" focused={focused} />,
-          tabBarItemStyle: (userRole === 'customer' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.inventory.enabled)) ? { display: 'none' } : undefined,
+          tabBarItemStyle: (userRole === 'customer' || userRole === 'guest' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.inventory.enabled)) ? { display: 'none' } : undefined,
         }}
         listeners={{
           tabPress: (e) => {
-            if (userRole === 'customer') {
+            if (userRole === 'customer' || userRole === 'guest') {
               e.preventDefault();
               router.replace('/(tabs)/market');
             }
@@ -315,11 +322,11 @@ export default function TabLayout() {
         options={{
           title: 'Analytics',
           tabBarIcon: ({ focused }) => <TabIcon Icon={BarChart3} label="Stats" focused={focused} />,
-          tabBarItemStyle: (userRole === 'customer' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.analytics.enabled)) ? { display: 'none' } : undefined,
+          tabBarItemStyle: (userRole === 'customer' || userRole === 'guest' || ((userRole === 'farmer' || userRole === 'admin') && !farmerFeatures.analytics.enabled)) ? { display: 'none' } : undefined,
         }}
         listeners={{
           tabPress: (e) => {
-            if (userRole === 'customer') {
+            if (userRole === 'customer' || userRole === 'guest') {
               e.preventDefault();
               router.replace('/(tabs)/market');
             }
@@ -332,11 +339,11 @@ export default function TabLayout() {
         options={{
           title: 'Market',
           tabBarIcon: ({ focused }) => <TabIcon Icon={ShoppingCart} label="Market" focused={focused} />,
-          tabBarItemStyle: userRole !== 'customer' && userRole !== 'admin' ? { display: 'none' } : undefined,
+          tabBarItemStyle: userRole !== 'customer' && userRole !== 'admin' && userRole !== 'guest' ? { display: 'none' } : undefined,
         }}
         listeners={{
           tabPress: (e) => {
-            if (userRole !== 'customer' && userRole !== 'admin') {
+            if (userRole !== 'customer' && userRole !== 'admin' && userRole !== 'guest') {
               e.preventDefault();
               router.replace('/(tabs)/inventory');
             }
@@ -349,11 +356,11 @@ export default function TabLayout() {
         options={{
           title: 'Orders',
           tabBarIcon: ({ focused }) => <TabIcon Icon={Package} label="Orders" focused={focused} />,
-          tabBarItemStyle: userRole === 'farmer' ? { display: 'none' } : undefined,
+          tabBarItemStyle: userRole === 'farmer' || userRole === 'guest' ? { display: 'none' } : undefined,
         }}
         listeners={{
           tabPress: (e) => {
-            if (userRole === 'farmer') {
+            if (userRole === 'farmer' || userRole === 'guest') {
               e.preventDefault();
               router.replace('/(tabs)/dashboard');
             }
@@ -366,6 +373,15 @@ export default function TabLayout() {
         options={{
           title: 'Setting',
           tabBarIcon: ({ focused }) => <TabIcon Icon={Settings} label="Setting" focused={focused} />,
+          tabBarItemStyle: userRole === 'guest' ? { display: 'none' } : undefined,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (userRole === 'guest') {
+              e.preventDefault();
+              router.replace('/(tabs)/market');
+            }
+          },
         }}
       />
     </Tabs>

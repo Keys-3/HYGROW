@@ -87,7 +87,8 @@ export default function SettingsScreen() {
         await deleteUser(auth.currentUser);
       }
 
-      logout();
+      await logout();
+      router.replace('/home');
     } catch (e) {
       console.error(e);
       alert('Failed to delete account. You may need to sign out and sign back in to verify your identity before deleting.');
@@ -252,6 +253,7 @@ export default function SettingsScreen() {
     setIsLoggingOut(true);
     try {
       await logout();
+      router.replace('/home');
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
@@ -452,6 +454,11 @@ export default function SettingsScreen() {
               <View style={styles.divider} />
             </>
           )}
+          <Pressable style={styles.settingRow} onPress={() => router.push('/home')}>
+            <Text style={styles.settingLabel}>View Home / Landing Page</Text>
+            <Text style={{ color: themeColors.primary, fontSize: 20 }}>→</Text>
+          </Pressable>
+          <View style={styles.divider} />
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>Dark Mode</Text>
             <Switch
