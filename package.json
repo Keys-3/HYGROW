@@ -2,6 +2,10 @@
   "name": "hygrow-root",
   "version": "1.0.0",
   "description": "Root package.json to run frontend and backend concurrently",
+  "workspaces": [
+    "FrontEnd",
+    "BackEnd"
+  ],
   "scripts": {
     "start": "concurrently \"npm run start-frontend\" \"npm run start-backend\"",
     "dev": "concurrently \"npm run dev-frontend\" \"npm run dev-backend\"",

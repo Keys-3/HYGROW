@@ -19,9 +19,9 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
 
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
@@ -39,6 +39,8 @@ jobs:
 
       - name: Build Android APK
         working-directory: FrontEnd
+        env:
+          EAS_NO_VCS: 1
         run: |
           eas build \
             --platform android \
