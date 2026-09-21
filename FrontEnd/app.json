@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "HyGrow",
-    "slug": "HyGrow",
+    "slug": "hygrow-root",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/hygrow-icon.png",
@@ -32,7 +32,7 @@
     },
     "android": {
       "icon": "./assets/images/hygrow-icon.png",
-      "package": "com.farmhelp.app",
+      "package": "com.prithvi.hygrow",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#0F172A",
@@ -54,7 +54,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6dc147d2-3731-463d-b4f0-bb0dc696cf76"
+        "projectId": "cf94f005-a95e-4186-bac2-65e639a12229"
       }
     }
   }
