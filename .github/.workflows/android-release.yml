@@ -22,7 +22,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
 
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
@@ -30,17 +29,23 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
+        working-directory: FrontEnd
         run: npm ci
 
+      - name: Verify Expo configuration
+        working-directory: FrontEnd
+        run: npx expo config --json
+
       - name: Build Android APK
+        working-directory: FrontEnd
         run: |
           eas build \
             --platform android \
             --profile production \
             --non-interactive \
             --wait \
-            --json > build.json
+            --json > ../build.json
 
       - name: Extract build ID
         id: build_info
@@ -56,21 +61,19 @@ jobs:
           echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
 
       - name: Download APK
+        working-directory: FrontEnd
         run: |
-          mkdir -p dist
-          cd dist
+          mkdir -p ../dist
+
           eas build:download \
             --build-id "$BUILD_ID" \
-            --non-interactive
+            --non-interactive \
+            --output ../dist/hygrow.apk
 
-          APK=$(find . -maxdepth 1 -type f -name "*.apk" | head -n 1)
-
-          if [ -z "$APK" ]; then
+          if [ ! -f "../dist/hygrow.apk" ]; then
             echo "APK not found"
             exit 1
           fi
-
-          mv "$APK" hygrow.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
