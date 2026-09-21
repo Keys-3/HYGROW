@@ -6,9 +6,12 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build:
-    name: Build Android APK
+    name: Build and Release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -36,4 +39,26 @@ jobs:
             --platform android \
             --profile production \
             --non-interactive \
-            --no-wait
+            --wait
+
+      - name: Download APK
+        run: |
+          mkdir -p dist
+          eas build:download \
+            --platform android \
+            --latest \
+            --path dist/hygrow.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hygrow-android-apk
+          path: dist/hygrow.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Hygrow Release v${{ github.run_number }}
+          files: dist/hygrow.apk
+          generate_release_notes: true
