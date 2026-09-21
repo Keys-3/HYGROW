@@ -418,10 +418,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderTopColor: colors.border,
     borderTopWidth: 1,
-    elevation: 0,
+    elevation: 10,
     ...Platform.select({
-      web: { boxShadow: 'none' },
-      default: { shadowOpacity: 0 },
+      web: { boxShadow: '0px -4px 15px rgba(0, 0, 0, 0.08)' },
+      default: { 
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
     }),
   },
   tabIconContainer: {

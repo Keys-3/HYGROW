@@ -443,7 +443,7 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
     color: colors.textSecondary,
   },
   linkTextBold: {
-    color: '#D4AF37',
+    color: colors.primary,
     fontWeight: 'bold',
   },
   roleContainer: {
@@ -463,8 +463,8 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
     alignItems: 'center',
   },
   roleCardActive: {
-    backgroundColor: '#D4AF37' + '20',
-    borderColor: '#D4AF37',
+    backgroundColor: colors.primary + '20',
+    borderColor: colors.primary,
   },
   roleLabel: {
     ...typography.caption,
@@ -473,6 +473,6 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
     textAlign: 'center',
   },
   roleLabelActive: {
-    color: '#D4AF37',
+    color: colors.primary,
   },
 });

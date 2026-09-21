@@ -91,85 +91,85 @@ export const darkColors = {
 };
 
 export const lightColors = {
-  primary: '#059669', // deeper emerald for light mode contrast
+  primary: '#10b981', // Emerald 500 (from landing page)
   primaryDark: '#047857',
-  primaryLight: '#34D399',
+  primaryLight: '#34d399',
   
-  success: '#16A34A',
-  warning: '#D97706',
-  danger: '#DC2626',
-  info: '#2563EB',
+  success: '#10b981', // success to match emerald
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  info: '#0ea5e9',
   
   // Backgrounds (light theme)
-  globalBackground: ['#F8FAFC', '#F1F5F9'], 
-  background: '#F8FAFC', // very light slate
+  globalBackground: ['#f8fafc', '#f1f5f9'], 
+  background: '#f8fafc', // Slate 50
   
   // Elevated Surfaces
-  surface: '#FFFFFF', // bright white cards
-  surfaceLight: '#F1F5F9',
-  surfaceMuted: '#FFFFFF',
+  surface: '#ffffff', // bright white cards
+  surfaceLight: '#f1f5f9',
+  surfaceMuted: '#f8fafc',
   
   // Text
-  text: '#0F172A', // almost black
+  text: '#0f172a', // Slate 900
   textSecondary: '#475569',
-  textMuted: '#94A3B8',
+  textMuted: '#64748b', // Slate 500
   
-  border: '#E2E8F0',
-  card: '#FFFFFF',
-  overlay: 'rgba(0,0,0,0.3)',
-  tabBar: '#FFFFFF',
-  tabBarBorder: '#E2E8F0',
+  border: '#e2e8f0', // Slate 200
+  card: '#ffffff',
+  overlay: 'rgba(15,23,42,0.4)', // Using a dark slate overlay
+  tabBar: '#ffffff',
+  tabBarBorder: '#e2e8f0',
 
   sensor: {
-    temperature: '#EA580C',
-    humidity: '#0284C7',
-    ph: '#9333EA',
-    ec: '#2563EB',
-    waterLevel: '#16A34A',
-    lightIntensity: '#D97706',
-    vpd: '#C026D3',
-    waterTemp: '#0284C7',
-    co2: '#0F766E',
+    temperature: '#f97316',
+    humidity: '#0ea5e9',
+    ph: '#a855f7',
+    ec: '#3b82f6',
+    waterLevel: '#10b981',
+    lightIntensity: '#f59e0b',
+    vpd: '#d946ef',
+    waterTemp: '#0284c7',
+    co2: '#0d9488',
   },
   
   gradients: {
-    primary: ['#059669', '#2563EB'],
-    temperature: ['#EA580C', '#C2410C'],
-    humidity: ['#0284C7', '#0369A1'],
-    ph: ['#9333EA', '#7E22CE'],
-    ec: ['#2563EB', '#1D4ED8'],
-    waterLevel: ['#16A34A', '#15803D'],
-    lightIntensity: ['#D97706', '#B45309'],
-    vpd: ['#C026D3', '#86198F'],
-    waterTemp: ['#0284C7', '#0369A1'],
-    co2: ['#0F766E', '#115E59'],
+    primary: ['#10b981', '#0ea5e9'],
+    temperature: ['#f97316', '#ea580c'],
+    humidity: ['#0ea5e9', '#0284c7'],
+    ph: ['#a855f7', '#7e22ce'],
+    ec: ['#3b82f6', '#1d4ed8'],
+    waterLevel: ['#10b981', '#15803d'],
+    lightIntensity: ['#f59e0b', '#b45309'],
+    vpd: ['#d946ef', '#a21caf'],
+    waterTemp: ['#0284c7', '#0369a1'],
+    co2: ['#0d9488', '#0f766e'],
   },
 
   cardGradients: {
-    default: ['#FFFFFF', '#FFFFFF'], 
-    temperature: ['rgba(234, 88, 12, 0.1)', 'rgba(234, 88, 12, 0.02)'],
-    humidity: ['rgba(2, 132, 199, 0.1)', 'rgba(2, 132, 199, 0.02)'],
-    ph: ['rgba(147, 51, 234, 0.1)', 'rgba(147, 51, 234, 0.02)'],
-    ec: ['rgba(37, 99, 235, 0.1)', 'rgba(37, 99, 235, 0.02)'],
-    waterLevel: ['rgba(22, 163, 74, 0.1)', 'rgba(22, 163, 74, 0.02)'],
-    lightIntensity: ['rgba(217, 119, 6, 0.1)', 'rgba(217, 119, 6, 0.02)'],
-    vpd: ['rgba(192, 38, 211, 0.1)', 'rgba(192, 38, 211, 0.02)'],
+    default: ['#ffffff', '#ffffff'], 
+    temperature: ['rgba(249, 115, 22, 0.1)', 'rgba(249, 115, 22, 0.02)'],
+    humidity: ['rgba(14, 165, 233, 0.1)', 'rgba(14, 165, 233, 0.02)'],
+    ph: ['rgba(168, 85, 247, 0.1)', 'rgba(168, 85, 247, 0.02)'],
+    ec: ['rgba(59, 130, 246, 0.1)', 'rgba(59, 130, 246, 0.02)'],
+    waterLevel: ['rgba(16, 185, 129, 0.1)', 'rgba(16, 185, 129, 0.02)'],
+    lightIntensity: ['rgba(245, 158, 11, 0.1)', 'rgba(245, 158, 11, 0.02)'],
+    vpd: ['rgba(217, 70, 239, 0.1)', 'rgba(217, 70, 239, 0.02)'],
     waterTemp: ['rgba(2, 132, 199, 0.1)', 'rgba(2, 132, 199, 0.02)'],
-    co2: ['rgba(15, 118, 110, 0.1)', 'rgba(15, 118, 110, 0.02)'],
+    co2: ['rgba(13, 148, 136, 0.1)', 'rgba(13, 148, 136, 0.02)'],
   },
 
-  successLight: 'rgba(22, 163, 74, 0.15)',
-  warningLight: 'rgba(217, 119, 6, 0.15)',
-  dangerLight: 'rgba(220, 38, 38, 0.15)',
+  successLight: 'rgba(16, 185, 129, 0.15)',
+  warningLight: 'rgba(245, 158, 11, 0.15)',
+  dangerLight: 'rgba(239, 68, 68, 0.15)',
   
-  successDark: '#15803D',
-  warningDark: '#B45309',
-  dangerDark: '#B91C1C',
-  dangerBorder: 'rgba(220, 38, 38, 0.4)',
+  successDark: '#047857',
+  warningDark: '#b45309',
+  dangerDark: '#b91c1c',
+  dangerBorder: 'rgba(239, 68, 68, 0.4)',
 };
 
 // Fallback for static imports (should be phased out in favor of useThemeColors)
-export const colors = darkColors;
+export const colors = lightColors;
 
 export const spacing = {
   xs: 4,
@@ -204,26 +204,26 @@ export const typography: Record<string, TextStyle> = {
 export const shadows = {
   card: Platform.select({
     web: {
-      boxShadow: '0px 10px 30px -10px rgba(0, 0, 0, 0.2)',
+      boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.1)',
     },
     default: {
       shadowColor: '#000000',
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: 0.15,
       shadowRadius: 20,
-      elevation: 5,
+      elevation: 8,
     },
   }),
   small: Platform.select({
     web: {
-      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
+      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
     },
     default: {
       shadowColor: '#000000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
       shadowRadius: 10,
-      elevation: 3,
+      elevation: 4,
     },
   }),
 };

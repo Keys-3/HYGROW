@@ -40,7 +40,7 @@ export interface SettingsSlice {
 }
 
 export const createSettingsSlice: StateCreator<StoreState, [], [], SettingsSlice> = (set, get) => ({
-  isDarkMode: true, // Default to dark mode as it's the premium theme
+  isDarkMode: false, // Default to light mode (Aztec theme)
   toggleTheme: async () => {
     set((state) => ({ isDarkMode: !state.isDarkMode }));
     const userId = get().user?.id;
