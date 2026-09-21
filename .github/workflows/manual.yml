@@ -15,14 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: [android, ios]
+        platform: [android]
         include:
           - platform: android
             file_ext: apk
             artifact_name: hygrow-android-apk
-          - platform: ios
-            file_ext: ipa
-            artifact_name: hygrow-ios-ipa
 
     steps:
       - name: Checkout repository
