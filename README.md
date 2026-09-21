@@ -189,13 +189,13 @@ docker run -it -p 3000:3000 -p 8081:8081 -p 19000:19000 -p 19001:19001 -p 19002:
 
 ### Local Installation & Setup (Ordered Steps)
 
-1. **Install All Dependencies**  
+1. **Install All Dependencies**
    From the root of the project, run the following command to install dependencies for both the root workspace, frontend, and backend simultaneously:
    ```bash
    npm run install-all
    ```
 
-2. **Configure Environment Variables**  
+2. **Configure Environment Variables**
    - **Backend**: Create a `.env` file in the `BackEnd/` directory:
      ```env
      PORT=3000
@@ -206,13 +206,13 @@ docker run -it -p 3000:3000 -p 8081:8081 -p 19000:19000 -p 19001:19001 -p 19002:
    - **Frontend**: Create a `.env` file in the `FrontEnd/` directory (see `.env.example`):
      ```env
      (Optional)
-     EXPO_PUBLIC_API_BASE_URL=https://farm-help-383f1.firebaseio.com/ 
+     EXPO_PUBLIC_API_BASE_URL=https://farm-help-383f1.firebaseio.com/
      (BackEnd URL Mandatory)
      EXPO_PUBLIC_BACKEND_URL=https://hygrow.onrender.com
      (Gemini API Key for Chatbots)
      ```
 
-3. **Start the Application**  
+3. **Start the Application**
    Run both the frontend and backend concurrently in development mode from the root directory:
    ```bash
    npm run dev
@@ -386,3 +386,4 @@ Build profiles are defined in `eas.json` (`development`, `preview`, `production`
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
