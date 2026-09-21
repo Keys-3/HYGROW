@@ -1,4 +1,4 @@
-name: Hygrow Android Release
+name: Hygrow Release Build
 
 on:
   workflow_dispatch:
@@ -11,8 +11,18 @@ permissions:
 
 jobs:
   build:
-    name: Build and Release APK
+    name: Build and Release ${{ matrix.platform }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [android, ios]
+        include:
+          - platform: android
+            file_ext: apk
+            artifact_name: hygrow-android-apk
+          - platform: ios
+            file_ext: ipa
+            artifact_name: hygrow-ios-ipa
 
     steps:
       - name: Checkout repository
@@ -33,60 +43,57 @@ jobs:
         working-directory: FrontEnd
         run: npm ci
 
-      - name: Verify Expo configuration
-        working-directory: FrontEnd
-        run: npx expo config --json
-
-      - name: Build Android APK
+      - name: Build with EAS
         working-directory: FrontEnd
         env:
           EAS_NO_VCS: 1
         run: |
           eas build \
-            --platform android \
+            --platform ${{ matrix.platform }} \
             --profile production \
             --non-interactive \
             --wait \
-            --json > ../build.json
+            --json > ../build_${{ matrix.platform }}.json
 
       - name: Extract build ID
         id: build_info
         run: |
-          BUILD_ID=$(jq -r '.id // .[0].id' build.json)
+          BUILD_ID=$(jq -r '.id // .[0].id' build_${{ matrix.platform }}.json)
 
           if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
             echo "Could not find build ID"
-            cat build.json
+            cat build_${{ matrix.platform }}.json
             exit 1
           fi
 
           echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
 
-      - name: Download APK
+      - name: Download App Binary
         working-directory: FrontEnd
         run: |
           mkdir -p ../dist
-
+          
           eas build:download \
             --build-id "$BUILD_ID" \
             --non-interactive \
-            --output ../dist/hygrow.apk
+            --output ../dist/hygrow.${{ matrix.file_ext }}
 
-          if [ ! -f "../dist/hygrow.apk" ]; then
-            echo "APK not found"
+          if [ ! -f "../dist/hygrow.${{ matrix.file_ext }}" ]; then
+            echo "Binary not found"
             exit 1
           fi
 
-      - name: Upload APK artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hygrow-android-apk
-          path: dist/hygrow.apk
+          name: ${{ matrix.artifact_name }}
+          path: dist/hygrow.${{ matrix.file_ext }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ github.run_number }}"
           name: "Hygrow Release v${{ github.run_number }}"
-          files: dist/hygrow.apk
+          files: dist/hygrow.${{ matrix.file_ext }}
+          append_body: true
           generate_release_notes: true

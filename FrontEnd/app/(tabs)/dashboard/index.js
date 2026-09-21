@@ -141,7 +141,7 @@ export default function DashboardScreen() {
       {/* Banner Image */}
       <Animated.View entering={FadeInDown.duration(400)} style={styles.bannerContainer}>
         <Image 
-          source={require('../../../assets/images/banner.png')} 
+          source={require('../../../assets/images/banner.jpg')} 
           style={styles.bannerImage}
         />
         <LinearGradient
