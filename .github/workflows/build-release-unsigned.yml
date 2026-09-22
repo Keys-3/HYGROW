@@ -1,0 +1,263 @@
+name: Build Mobile Releases (Unsigned)
+
+# Builds installable artifacts for personal testing, at no cost:
+#   - Android: a *release* APK, signed with the project's debug keystore
+#     (committed at FrontEnd/android/app/debug.keystore). This installs
+#     directly on any Android phone with "install from unknown sources"
+#     enabled - no Play Console, no paid account.
+#   - iOS: a genuinely UNSIGNED .ipa (CODE_SIGNING_ALLOWED=NO). Apple does
+#     not allow an unsigned app to launch on a real iPhone, even for
+#     sideloading - there is no way around that from CI. To run it on your
+#     iPhone for free, sign this .ipa yourself with Sideloadly or
+#     AltStore/AltServer using your own (free) Apple ID. That signs it
+#     on your computer in seconds and doesn't require Xcode or a Mac.
+#     See: https://sideloadly.io or https://altstore.io
+#
+# The app lives in FrontEnd/, not the repo root.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag (example: v1.0.0)"
+        required: true
+        default: "v1.0.0"
+
+      release_name:
+        description: "Release name"
+        required: true
+        default: "HyGrow Mobile Build"
+
+permissions:
+  contents: write
+
+env:
+  APP_NAME: HyGrow
+  FRONTEND_DIR: FrontEnd
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci
+
+      - name: Expo prebuild
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: gradle
+
+      - name: Make Gradle executable
+        run: chmod +x ${{ env.FRONTEND_DIR }}/android/gradlew
+
+      - name: Build release APK
+        working-directory: ${{ env.FRONTEND_DIR }}/android
+        run: ./gradlew assembleRelease --no-daemon
+        # assembleRelease (not assembleDebug): a real release build, still
+        # signed with the project's debug keystore (see app/build.gradle),
+        # so it installs on any Android device with zero setup and no cost.
+
+      - name: Prepare APK
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/release"
+          cp android/app/build/outputs/apk/release/app-release.apk \
+             "$GITHUB_WORKSPACE/release/${APP_NAME}-${{ inputs.release_tag }}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: android-apk
+          path: release/${{ env.APP_NAME }}-${{ inputs.release_tag }}.apk
+          if-no-files-found: error
+
+  build-ios:
+    name: Build iOS IPA (unsigned)
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci
+
+      - name: Expo prebuild
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Pin Node for Xcode build phases
+        working-directory: ${{ env.FRONTEND_DIR }}/ios
+        run: |
+          NODE_PATH=$(command -v node)
+          if [ -z "$NODE_PATH" ] || [ ! -x "$NODE_PATH" ]; then
+            echo "Could not resolve an executable Node.js binary" >&2
+            exit 1
+          fi
+          printf 'export NODE_BINARY="%s"\n' "$NODE_PATH" > .xcode.env
+          rm -f .xcode.env.local
+          echo "Xcode will use NODE_BINARY=$NODE_PATH"
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.FRONTEND_DIR }}/ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('FrontEnd/ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        working-directory: ${{ env.FRONTEND_DIR }}/ios
+        run: pod install
+
+      - name: Show Xcode information
+        run: |
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Determine Xcode scheme
+        id: scheme
+        working-directory: ${{ env.FRONTEND_DIR }}/ios
+        run: |
+          # The scheme name matches the app.json "name" (HyGrow), but this
+          # confirms it against the generated workspace instead of assuming.
+          SCHEME=$(xcodebuild -list -workspace *.xcworkspace 2>/dev/null \
+            | awk '/Schemes:/{flag=1; next} flag && NF{print $1; exit}')
+          if [ -z "$SCHEME" ]; then
+            echo "Could not detect an Xcode scheme" >&2
+            exit 1
+          fi
+          echo "Detected scheme: $SCHEME"
+          echo "name=$SCHEME" >> "$GITHUB_OUTPUT"
+
+      - name: Build unsigned iOS app
+        working-directory: ${{ env.FRONTEND_DIR }}/ios
+        run: |
+          set -o pipefail
+          # Build directly into a known DerivedData directory. An unsigned
+          # archive is not needed for an installable test IPA, and on recent
+          # Xcode versions an unsigned archive may not contain
+          # Products/Applications at the path used by the old packaging step.
+          xcodebuild \
+            -workspace *.xcworkspace \
+            -scheme "${{ steps.scheme.outputs.name }}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination generic/platform=iOS \
+            -derivedDataPath "$RUNNER_TEMP/ios-derived-data" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ONLY_ACTIVE_ARCH=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/xcodebuild-archive.log"
+
+      - name: Upload Xcode build log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: xcodebuild-archive-log
+          path: ${{ runner.temp }}/xcodebuild-archive.log
+          if-no-files-found: warn
+
+      - name: Create unsigned IPA
+        run: |
+          mkdir -p release Payload
+          APP_BUNDLE=$(find "$RUNNER_TEMP/ios-derived-data/Build/Products" \
+            -type d -path "*/Release-iphoneos/*.app" -prune -print | head -n1)
+          if [ -z "$APP_BUNDLE" ]; then
+            echo "No unsigned .app bundle found in DerivedData" >&2
+            echo "Build products:" >&2
+            find "$RUNNER_TEMP/ios-derived-data/Build/Products" -maxdepth 3 -print >&2 || true
+            exit 1
+          fi
+          echo "Packaging app bundle: $APP_BUNDLE"
+          cp -R "$APP_BUNDLE" "Payload/$(basename "$APP_BUNDLE")"
+
+          zip -r \
+            "release/${APP_NAME}-${{ inputs.release_tag }}.ipa" \
+            Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-ipa
+          path: release/${{ env.APP_NAME }}-${{ inputs.release_tag }}.ipa
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release
+    needs:
+      - build-android
+      - build-ios
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: release
+
+      - name: Flatten artifacts
+        run: |
+          mv release/android-apk/*.apk release/
+          mv release/ios-ipa/*.ipa release/
+
+      - name: Write release notes
+        run: |
+          {
+            echo "${{ env.APP_NAME }} Android APK + iOS IPA (unsigned) - ${{ inputs.release_tag }}"
+            echo ""
+            echo '- **Android**: release APK, ready to install. Enable "install from unknown sources" for your file manager/browser, then open the APK.'
+            echo '- **iOS**: UNSIGNED `.ipa`. It will **not** launch on a real iPhone as-is - Apple requires every app to be signed, even for sideloading. Sign it yourself for free with [Sideloadly](https://sideloadly.io) or [AltStore/AltServer](https://altstore.io) using your own Apple ID, then install the signed result.'
+          } > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="release/${APP_NAME}-${{ inputs.release_tag }}.apk"
+          IPA="release/${APP_NAME}-${{ inputs.release_tag }}.ipa"
+
+          if gh release view "${{ inputs.release_tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "${{ inputs.release_tag }}" \
+              --repo "${{ github.repository }}" \
+              "$APK" "$IPA" \
+              --clobber
+            gh release edit "${{ inputs.release_tag }}" \
+              --repo "${{ github.repository }}" \
+              --title "${{ inputs.release_name }}" \
+              --notes-file "$RUNNER_TEMP/release-notes.md"
+          else
+            gh release create "${{ inputs.release_tag }}" \
+              --repo "${{ github.repository }}" \
+              "$APK" "$IPA" \
+              --title "${{ inputs.release_name }}" \
+              --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
