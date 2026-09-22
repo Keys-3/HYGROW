@@ -55,7 +55,7 @@ jobs:
       - name: Extract build ID
         id: build_info
         run: |
-          BUILD_ID=$(jq -r '.id // .[0].id' build_${{ matrix.platform }}.json)
+          BUILD_ID=$(jq -r '.id? // .[0]?.id?' build_${{ matrix.platform }}.json)
 
           if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
             echo "Could not find build ID"
