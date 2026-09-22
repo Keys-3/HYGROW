@@ -10,17 +10,9 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build and Release ${{ matrix.platform }}
+  build-android:
+    name: Build Android APK
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform: [android]
-        include:
-          - platform: android
-            file_ext: apk
-            artifact_name: hygrow-android-apk
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -30,67 +22,100 @@ jobs:
         with:
           node-version: 22
 
-      - name: Setup Expo and EAS
-        uses: expo/expo-github-action@v8
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Install frontend dependencies
         working-directory: FrontEnd
         run: npm ci
 
-      - name: Build with EAS
+      - name: Expo Prebuild
         working-directory: FrontEnd
-        env:
-          EAS_NO_VCS: 1
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build Android Release APK
+        working-directory: FrontEnd/android
+        run: ./gradlew assembleRelease
+
+      - name: Prepare Artifact
         run: |
-          eas build \
-            --platform ${{ matrix.platform }} \
-            --profile production \
-            --non-interactive \
-            --wait \
-            --json > ../build_${{ matrix.platform }}.json
-
-      - name: Extract build ID
-        id: build_info
-        run: |
-          BUILD_ID=$(jq -r '.id? // .[0]?.id?' build_${{ matrix.platform }}.json)
-
-          if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
-            echo "Could not find build ID"
-            cat build_${{ matrix.platform }}.json
-            exit 1
-          fi
-
-          echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
-
-      - name: Download App Binary
-        working-directory: FrontEnd
-        run: |
-          mkdir -p ../dist
-          
-          eas build:download \
-            --build-id "$BUILD_ID" \
-            --non-interactive \
-            --output ../dist/hygrow.${{ matrix.file_ext }}
-
-          if [ ! -f "../dist/hygrow.${{ matrix.file_ext }}" ]; then
-            echo "Binary not found"
-            exit 1
-          fi
+          mkdir -p dist
+          cp FrontEnd/android/app/build/outputs/apk/release/app-release.apk dist/hygrow.apk
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: dist/hygrow.${{ matrix.file_ext }}
+          name: hygrow-android-apk
+          path: dist/hygrow.apk
+
+  build-ios:
+    name: Build iOS Simulator App
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install frontend dependencies
+        working-directory: FrontEnd
+        run: npm ci
+
+      - name: Expo Prebuild
+        working-directory: FrontEnd
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build iOS App
+        working-directory: FrontEnd/ios
+        run: |
+          pod install
+          xcodebuild -workspace HyGrow.xcworkspace -scheme HyGrow -configuration Release -sdk iphonesimulator -derivedDataPath build
+
+      - name: Prepare Artifact
+        run: |
+          mkdir -p dist
+          cd FrontEnd/ios/build/Build/Products/Release-iphonesimulator
+          tar -czf ../../../../../../dist/hygrow-ios-simulator.tar.gz HyGrow.app
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hygrow-ios-simulator
+          path: dist/hygrow-ios-simulator.tar.gz
+
+  release:
+    name: Create GitHub Release
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hygrow-android-apk
+          path: dist
+
+      - name: Download iOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hygrow-ios-simulator
+          path: dist
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ github.run_number }}"
           name: "Hygrow Release v${{ github.run_number }}"
-          files: dist/hygrow.${{ matrix.file_ext }}
+          files: |
+            dist/hygrow.apk
+            dist/hygrow-ios-simulator.tar.gz
           append_body: true
           generate_release_notes: true
