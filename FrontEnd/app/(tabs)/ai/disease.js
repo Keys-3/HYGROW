@@ -312,7 +312,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    justifyContent: 'space-between',
     marginBottom: spacing.xl,
   },
   actionBtn: {
@@ -321,6 +321,7 @@ const createStyles = (theme) => StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
+    marginHorizontal: spacing.xs,
   },
   secondaryBtn: {
     backgroundColor: theme.surfaceLight,
@@ -352,12 +353,14 @@ const createStyles = (theme) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
+    flexWrap: 'wrap',
   },
   resultTitle: {
     ...typography.h2,
     color: theme.warning,
     flex: 1,
     marginRight: 8,
+    minWidth: 150,
   },
   badge: {
     paddingHorizontal: 8,

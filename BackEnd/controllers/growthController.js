@@ -22,11 +22,6 @@ res.json({
 });
 
     console.log("Prediction:", prediction);
-
-    res.json({
-      success: true,
-      prediction,
-    });
   } catch (err) {
     console.error(err);
     res.status(500).json({

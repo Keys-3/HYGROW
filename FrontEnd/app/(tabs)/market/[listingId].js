@@ -403,7 +403,7 @@ export default function ListingDetailScreen() {
             ]}
             onPress={handleContact}
           >
-            <Text style={styles.contactBtnText}>Contact Seller</Text>
+            <Text style={styles.contactBtnHalfText}>Contact Seller</Text>
           </Pressable>
 
           <Pressable
@@ -815,6 +815,11 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  contactBtnHalfText: {
+    ...typography.body,
+    fontWeight: '700',
+    color: colors.primary,
   },
   buyBtn: {
     flex: 1,

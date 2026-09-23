@@ -305,12 +305,11 @@ const createStyles = (theme) => StyleSheet.create({
   readingsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
     justifyContent: 'space-between',
   },
   readingInputWrapper: {
     width: '48%',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.md,
   },
   readingLabel: {
     ...typography.caption,
@@ -356,8 +355,8 @@ const createStyles = (theme) => StyleSheet.create({
   },
   timeBox: { flex: 1, alignItems: 'center' },
   timeLabel: { ...typography.caption, color: theme.textSecondary, marginBottom: 4 },
-  timeValue: { ...typography.h3, color: theme.text },
-  stageText: { ...typography.h3, color: theme.info },
+  timeValue: { ...typography.h3, color: theme.text, textAlign: 'center' },
+  stageText: { ...typography.h3, color: theme.info, textAlign: 'center' },
   verticalDivider: { width: 1, height: '80%', backgroundColor: theme.border, marginHorizontal: spacing.md },
   factorsTitle: { ...typography.body, fontWeight: '600', marginBottom: spacing.sm, color: theme.text },
   

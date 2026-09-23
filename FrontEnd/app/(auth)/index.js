@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useRef } from 'react';
 import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import useAuth from '../../src/hooks/useAuth';
 import useAppStore from '../../src/store/useAppStore';
 import { borderRadius, useThemeColors, spacing, typography } from '../../src/theme/theme';
@@ -30,6 +31,7 @@ export default function AuthScreen() {
   // Login State
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   
   // Signup State
   const [name, setName] = useState('');
@@ -209,12 +211,27 @@ export default function AuthScreen() {
                   <View style={styles.logoContainer}>
                     <Image source={require('../../assets/images/logo.png')} style={styles.logoImage} resizeMode="contain" />
                   </View>
-                  <Text style={[styles.title, { marginBottom: isMobile ? 2 : spacing.lg }]}>Sign In</Text>
+                  <Text style={[styles.title, { marginBottom: isMobile ? 2 : spacing.xs }]}>Sign In</Text>
 
-                  {error && isLoginState ? <Text style={styles.errorText}>{error}</Text> : null}
+                  <View style={{ height: isMobile ? 28 : 40, justifyContent: 'center', marginBottom: spacing.xs }}>
+                    {error && isLoginState ? <Text style={[styles.errorText, { marginBottom: 0 }]}>{error}</Text> : null}
+                  </View>
 
                   <TextInput style={[styles.input, styles.inputLarge]} placeholder="Email" placeholderTextColor={themeColors.textMuted} value={loginEmail} onChangeText={setLoginEmail} keyboardType="email-address" autoCapitalize="none" />
-                  <TextInput style={[styles.input, styles.inputLarge]} placeholder="Password" placeholderTextColor={themeColors.textMuted} value={loginPassword} onChangeText={setLoginPassword} secureTextEntry />
+                  
+                  <View style={styles.passwordContainer}>
+                    <TextInput 
+                      style={[styles.passwordInput, { flex: 1 }]} 
+                      placeholder="Password" 
+                      placeholderTextColor={themeColors.textMuted} 
+                      value={loginPassword} 
+                      onChangeText={setLoginPassword} 
+                      secureTextEntry={!showLoginPassword} 
+                    />
+                    <Pressable onPress={() => setShowLoginPassword(!showLoginPassword)} style={styles.eyeIcon}>
+                      {showLoginPassword ? <EyeOff color={themeColors.textMuted} size={20} /> : <Eye color={themeColors.textMuted} size={20} />}
+                    </Pressable>
+                  </View>
 
                   <Pressable style={({ pressed }) => [styles.button, styles.buttonLarge, pressed && styles.buttonPressed]} onPress={handleLogin} disabled={loading}>
                     {loading ? <ActivityIndicator color={themeColors.background} /> : <Text style={[styles.buttonText, styles.buttonTextLarge]}>Sign In</Text>}
@@ -236,9 +253,11 @@ export default function AuthScreen() {
                   <View style={styles.logoContainer}>
                     <Image source={require('../../assets/images/logo.png')} style={styles.logoImage} resizeMode="contain" />
                   </View>
-                  <Text style={[styles.title, { marginBottom: isMobile ? 2 : spacing.md }]}>Sign Up</Text>
+                  <Text style={[styles.title, { marginBottom: isMobile ? 2 : spacing.xs }]}>Sign Up</Text>
                   
-                  {error && !isLoginState ? <Text style={styles.errorText}>{error}</Text> : null}
+                  <View style={{ height: isMobile ? 28 : 40, justifyContent: 'center', marginBottom: spacing.xs }}>
+                    {error && !isLoginState ? <Text style={[styles.errorText, { marginBottom: 0 }]}>{error}</Text> : null}
+                  </View>
 
                   {signupStep === 1 ? (
                     <>
@@ -399,6 +418,24 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
     paddingVertical: isMobile ? 6 : 14,
     fontSize: isMobile ? 12 : 16,
     marginBottom: isMobile ? 6 : spacing.md,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    marginBottom: isMobile ? 6 : spacing.md,
+  },
+  passwordInput: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: isMobile ? 6 : 14,
+    color: colors.text,
+    fontSize: isMobile ? 12 : 16,
+  },
+  eyeIcon: {
+    paddingHorizontal: spacing.md,
   },
   row: {
     flexDirection: 'row',
