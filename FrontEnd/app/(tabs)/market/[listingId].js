@@ -809,12 +809,12 @@ const createStyles = (colors) => StyleSheet.create({
   },
   contactBtnHalf: {
     flex: 1,
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: colors.surface,
     padding: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   contactBtnHalfText: {
     ...typography.body,

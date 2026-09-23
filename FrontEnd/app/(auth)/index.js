@@ -32,7 +32,7 @@ export default function AuthScreen() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-  
+
   // Signup State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -46,7 +46,7 @@ export default function AuthScreen() {
   const [pincode, setPincode] = useState('');
   const [farmName, setFarmName] = useState('');
   const [farmLocation, setFarmLocation] = useState('');
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -189,20 +189,20 @@ export default function AuthScreen() {
   };
 
   const isWebOrTablet = !isMobile;
-  
+
   // Ensure the coin fits perfectly on the screen without bleeding or overflowing
-  const coinSize = isWebOrTablet ? 550 : Math.min(width * 0.95, height * 0.75); 
-  
+  const coinSize = isWebOrTablet ? 550 : Math.min(width * 0.95, height * 0.75);
+
   // Using 72% width and 8% vertical padding (84% height) provides massive vertical space while staying inside the circle.
-  const contentWidth = isWebOrTablet ? 400 : coinSize * 0.72; 
-  const verticalPadding = isWebOrTablet ? coinSize * 0.05 : coinSize * 0.08; 
+  const contentWidth = isWebOrTablet ? 400 : coinSize * 0.85;
+  const verticalPadding = isWebOrTablet ? coinSize * 0.05 : coinSize * 0.08;
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.centeredContainer}>
         {/* The 3D Coin Container */}
         <View style={[styles.coinWrapper, { width: coinSize, height: coinSize }]}>
-          
+
           {/* Front: Login */}
           <Animated.View style={[styles.coinFace, frontAnimatedStyle, { zIndex: isLoginState ? 1 : 0 }]}>
             <View style={styles.coinInner}>
@@ -211,22 +211,22 @@ export default function AuthScreen() {
                   <View style={styles.logoContainer}>
                     <Image source={require('../../assets/images/logo.png')} style={styles.logoImage} resizeMode="contain" />
                   </View>
-                  <Text style={[styles.title, { marginBottom: isMobile ? 2 : spacing.xs }]}>Sign In</Text>
+                  <Text style={[styles.title, { marginBottom: spacing.xs }]}>Sign In</Text>
 
-                  <View style={{ height: isMobile ? 28 : 40, justifyContent: 'center', marginBottom: spacing.xs }}>
+                  <View style={{ height: 40, justifyContent: 'center', marginBottom: spacing.xs }}>
                     {error && isLoginState ? <Text style={[styles.errorText, { marginBottom: 0 }]}>{error}</Text> : null}
                   </View>
 
                   <TextInput style={[styles.input, styles.inputLarge]} placeholder="Email" placeholderTextColor={themeColors.textMuted} value={loginEmail} onChangeText={setLoginEmail} keyboardType="email-address" autoCapitalize="none" />
-                  
+
                   <View style={styles.passwordContainer}>
-                    <TextInput 
-                      style={[styles.passwordInput, { flex: 1 }]} 
-                      placeholder="Password" 
-                      placeholderTextColor={themeColors.textMuted} 
-                      value={loginPassword} 
-                      onChangeText={setLoginPassword} 
-                      secureTextEntry={!showLoginPassword} 
+                    <TextInput
+                      style={[styles.passwordInput, { flex: 1 }]}
+                      placeholder="Password"
+                      placeholderTextColor={themeColors.textMuted}
+                      value={loginPassword}
+                      onChangeText={setLoginPassword}
+                      secureTextEntry={!showLoginPassword}
                     />
                     <Pressable onPress={() => setShowLoginPassword(!showLoginPassword)} style={styles.eyeIcon}>
                       {showLoginPassword ? <EyeOff color={themeColors.textMuted} size={20} /> : <Eye color={themeColors.textMuted} size={20} />}
@@ -253,9 +253,9 @@ export default function AuthScreen() {
                   <View style={styles.logoContainer}>
                     <Image source={require('../../assets/images/logo.png')} style={styles.logoImage} resizeMode="contain" />
                   </View>
-                  <Text style={[styles.title, { marginBottom: isMobile ? 2 : spacing.xs }]}>Sign Up</Text>
-                  
-                  <View style={{ height: isMobile ? 28 : 40, justifyContent: 'center', marginBottom: spacing.xs }}>
+                  <Text style={[styles.title, { marginBottom: spacing.xs }]}>Sign Up</Text>
+
+                  <View style={{ height: 40, justifyContent: 'center', marginBottom: spacing.xs }}>
                     {error && !isLoginState ? <Text style={[styles.errorText, { marginBottom: 0 }]}>{error}</Text> : null}
                   </View>
 
@@ -271,7 +271,7 @@ export default function AuthScreen() {
 
                       <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor={themeColors.textMuted} value={name} onChangeText={setName} />
                       <TextInput style={styles.input} placeholder="Email" placeholderTextColor={themeColors.textMuted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-                      
+
                       <View style={styles.row}>
                         <TextInput style={[styles.input, { flex: 1, marginRight: spacing.xs }]} placeholder="Password" placeholderTextColor={themeColors.textMuted} value={password} onChangeText={setPassword} secureTextEntry />
                         <TextInput style={[styles.input, { flex: 1 }]} placeholder="Confirm" placeholderTextColor={themeColors.textMuted} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
@@ -291,12 +291,12 @@ export default function AuthScreen() {
                   ) : (
                     <>
                       {renderRoleSpecificFields()}
-                      
+
                       <View style={[styles.row, { marginTop: spacing.xs }]}>
                         <Pressable style={({ pressed }) => [styles.button, { flex: 1, marginRight: spacing.sm, backgroundColor: themeColors.surfaceLight, borderWidth: 1, borderColor: themeColors.border }, pressed && styles.buttonPressed]} onPress={() => setSignupStep(1)}>
                           <Text style={[styles.buttonText, { color: themeColors.text }]}>Back</Text>
                         </Pressable>
-                        
+
                         <Pressable style={({ pressed }) => [styles.button, { flex: 2 }, pressed && styles.buttonPressed]} onPress={handleSignup} disabled={loading}>
                           {loading ? <ActivityIndicator color={themeColors.background} /> : <Text style={styles.buttonText}>Complete Sign Up</Text>}
                         </Pressable>
@@ -373,16 +373,16 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: isMobile ? 4 : spacing.md,
+    marginBottom: spacing.md,
   },
   logoImage: {
-    width: isMobile ? 35 : 75,
-    height: isMobile ? 35 : 75,
-    marginBottom: isMobile ? 2 : spacing.xs,
+    width: 75,
+    height: 75,
+    marginBottom: spacing.xs,
   },
   title: {
     ...typography.h2,
-    fontSize: isMobile ? 16 : 22,
+    fontSize: 22,
     color: colors.text,
     textAlign: 'center',
     marginBottom: spacing.xs,
@@ -409,15 +409,15 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
     borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: isMobile ? 4 : 10,
-    marginBottom: isMobile ? 4 : spacing.xs,
+    paddingVertical: 10,
+    marginBottom: spacing.xs,
     color: colors.text,
-    fontSize: isMobile ? 11 : 14,
+    fontSize: 14,
   },
   inputLarge: {
-    paddingVertical: isMobile ? 6 : 14,
-    fontSize: isMobile ? 12 : 16,
-    marginBottom: isMobile ? 6 : spacing.md,
+    paddingVertical: 14,
+    fontSize: 16,
+    marginBottom: spacing.md,
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -426,13 +426,13 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: borderRadius.md,
-    marginBottom: isMobile ? 6 : spacing.md,
+    marginBottom: spacing.md,
   },
   passwordInput: {
     paddingHorizontal: spacing.md,
-    paddingVertical: isMobile ? 6 : 14,
+    paddingVertical: 14,
     color: colors.text,
-    fontSize: isMobile ? 12 : 16,
+    fontSize: 16,
   },
   eyeIcon: {
     paddingHorizontal: spacing.md,
@@ -442,10 +442,10 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
   },
   button: {
     backgroundColor: colors.primary,
-    paddingVertical: isMobile ? 6 : 10,
+    paddingVertical: 10,
     borderRadius: borderRadius.lg,
     alignItems: 'center',
-    marginTop: isMobile ? 2 : spacing.xs,
+    marginTop: spacing.xs,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -453,8 +453,8 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
     elevation: 5,
   },
   buttonLarge: {
-    paddingVertical: isMobile ? 8 : 14,
-    marginTop: isMobile ? 4 : spacing.sm,
+    paddingVertical: 14,
+    marginTop: spacing.sm,
   },
   buttonPressed: {
     opacity: 0.8,
@@ -464,19 +464,19 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
     ...typography.body,
     fontWeight: 'bold',
     color: colors.background,
-    fontSize: isMobile ? 12 : 14,
+    fontSize: 14,
   },
   buttonTextLarge: {
-    fontSize: isMobile ? 14 : 18,
+    fontSize: 18,
   },
   linkButton: {
-    marginTop: isMobile ? spacing.sm : spacing.lg,
+    marginTop: spacing.lg,
     alignItems: 'center',
     padding: spacing.sm,
   },
   linkText: {
     ...typography.bodySmall,
-    fontSize: isMobile ? 11 : 13,
+    fontSize: 13,
     color: colors.textSecondary,
   },
   linkTextBold: {
@@ -486,12 +486,12 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
   roleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: isMobile ? 4 : spacing.md,
+    marginBottom: spacing.md,
     gap: spacing.xs,
   },
   roleCard: {
     flex: 1,
-    paddingVertical: isMobile ? 2 : 6,
+    paddingVertical: 6,
     paddingHorizontal: spacing.xs,
     borderRadius: borderRadius.md,
     borderWidth: 1,
