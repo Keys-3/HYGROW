@@ -6,13 +6,18 @@ export const getBackendUrl = () => {
     return process.env.EXPO_PUBLIC_BACKEND_URL;
   }
 
-  if (Platform.OS === 'web') {
-    return 'http://localhost:3000';
-  }
-
   const hostUri = Constants?.expoConfig?.hostUri;
   if (hostUri) {
     return `http://${hostUri.split(':')[0]}:3000`;
+  }
+
+  // If not in development, default to production backend
+  if (!__DEV__) {
+    return 'https://hygrow.onrender.com';
+  }
+
+  if (Platform.OS === 'web') {
+    return 'http://localhost:3000';
   }
 
   if (Platform.OS === 'android') {
