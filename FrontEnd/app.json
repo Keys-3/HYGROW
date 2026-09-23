@@ -28,6 +28,9 @@
       "userInterfaceStyle": "dark",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "android": {
@@ -37,7 +40,8 @@
       "adaptiveIcon": {
         "backgroundColor": "#0F172A",
         "foregroundImage": "./assets/images/hygrow-icon.png"
-      }
+      },
+      "runtimeVersion": "1.0.0"
     },
     "androidNavigationBar": {
       "barStyle": "light-content",
@@ -56,6 +60,9 @@
       "eas": {
         "projectId": "cf94f005-a95e-4186-bac2-65e639a12229"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/cf94f005-a95e-4186-bac2-65e639a12229"
     }
   }
 }
