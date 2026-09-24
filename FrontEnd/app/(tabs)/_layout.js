@@ -133,6 +133,7 @@ export default function TabLayout() {
         };
 
         updateSensorData(liveData);
+        useAppStore.getState().setDeviceOnline(true);
 
         // Check alerts
         SENSOR_KEYS.forEach((key) => {

@@ -60,43 +60,43 @@ export default function useSensorData() {
     // Query for the latest single reading
     const qLatest = query(
       collection(db, SENSOR_COLLECTION),
-      orderBy('timestamp', 'desc'),
+      orderBy('lastUpdated', 'desc'),
       limit(1)
     );
-    
+
     // Query for the historical data (last 100 points)
     const qHistory = query(
       collection(db, SENSOR_COLLECTION),
-      orderBy('timestamp', 'desc'),
+      orderBy('lastUpdated', 'desc'),
       limit(100)
     );
 
-    let unsubLatest = () => {};
-    let unsubHistory = () => {};
+    let unsubLatest = () => { };
+    let unsubHistory = () => { };
 
     try {
       unsubHistory = onSnapshot(qHistory, (snapshot) => {
         if (!snapshot.empty) {
           const fetchedHistory: HistoryPoint[] = snapshot.docs.map(doc => {
             const data = doc.data();
-            const ts = data.timestamp?.toDate?.() || new Date();
+            const ts = data.lastUpdated?.toDate?.() || new Date();
             return {
               time: ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               date: ts.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-              temperature: data.air_temp_c ?? 0,
-              humidity: data.humidity_percent ?? 0,
-              ph: data.ph_value ?? 0,
+              temperature: data.temp_c ?? 0,
+              humidity: data.humidity ?? 0,
+              ph: data.ph_val ?? 0,
               ec: data.tds_ppm ?? 0,
-              waterLevel: data.water_level_percent ?? 0,
-              lightIntensity: data.light_lux ?? 0,
-              vpd: data.vpd !== undefined ? data.vpd : calculateVPD(data.air_temp_c ?? 0, data.humidity_percent ?? 0),
+              waterLevel: data.wl_percent ?? 0,
+              lightIntensity: data.lux ?? 0,
+              vpd: data.vpd_kpa !== undefined ? data.vpd_kpa : calculateVPD(data.temp_c ?? 0, data.humidity ?? 0),
               waterTemp: data.water_temp_c ?? 20,
               co2: data.co2_ppm ?? 450,
             };
-          }).reverse(); 
-          
-          setHistory(fetchedHistory.slice(-20)); 
-          setWeekly(fetchedHistory); 
+          }).reverse();
+
+          setHistory(fetchedHistory.slice(-20));
+          setWeekly(fetchedHistory);
         } else {
           // Generate 20 points of mock history data using a sine wave so charts look beautiful
           const mockHistory: HistoryPoint[] = Array.from({ length: 20 }).map((_, i) => {
@@ -124,65 +124,64 @@ export default function useSensorData() {
 
       unsubLatest = onSnapshot(
         qLatest,
-      (snapshot) => {
-        if (snapshot.empty) {
-          console.warn('No sensor data found in Firestore - using local mock data');
+        (snapshot) => {
+          if (snapshot.empty) {
+            console.warn('No sensor data found in Firestore - using local mock data');
+            setLoading(false);
+            return;
+          }
+
+          const doc = snapshot.docs[0];
+          const data = doc.data();
+
+          const sensorTimestamp =
+            data.lastUpdated?.toDate?.()?.toISOString?.() ?? new Date().toISOString();
+
+          const mapped: SensorData = {
+            deviceId: data.deviceId ?? 'Unknown Device',
+            temperature: data.temp_c ?? 0,
+            humidity: data.humidity ?? 0,
+            ph: data.ph_val ?? 0,
+
+            // Temporary mapping: using TDS as EC until you add a real EC field
+            ec: data.tds_ppm ?? 0,
+
+            waterLevel: data.wl_percent ?? 0,
+            lightIntensity: data.lux ?? 0,
+            vpd: data.vpd_kpa !== undefined && data.vpd_kpa !== null ? data.vpd_kpa : calculateVPD(data.temp_c ?? 0, data.humidity ?? 0),
+            waterTemp: data.water_temp_c ?? 20,
+            co2: data.co2_ppm ?? 450,
+
+            // These aren't in Firestore yet, so using defaults
+            pumpStatus: data.status === 'Online',
+            autoMode: true,
+
+            lastSensorTimestamp: sensorTimestamp,
+          };
+
+          updateSensorData(mapped);
+
+          // Device online/offline check
+          // If no reading arrives for > 2 minutes, mark offline
+          const now = Date.now();
+          const lastSeen = new Date(sensorTimestamp).getTime();
+          const diffMs = now - lastSeen;
+          setDeviceOnline(diffMs <= 2 * 60 * 1000);
+
+          setLoading(false);
+          setError(null);
+        },
+        (err) => {
+          // eslint-disable-next-line no-console
+          console.warn('Firebase sync warning:', err);
+          setError(err.message);
           setLoading(false);
           setDeviceOnline(false);
-          return;
         }
-
-        const doc = snapshot.docs[0];
-        const data = doc.data();
-
-        const sensorTimestamp =
-          data.timestamp?.toDate?.()?.toISOString?.() ?? new Date().toISOString();
-
-        const mapped: SensorData = {
-          deviceId: data.device_id ?? 'Unknown Device',
-          temperature: data.air_temp_c ?? 0,
-          humidity: data.humidity_percent ?? 0,
-          ph: data.ph_value ?? 0,
-
-          // Temporary mapping: using TDS as EC until you add a real EC field
-          ec: data.tds_ppm ?? 0,
-
-          waterLevel: data.water_level_percent ?? 0,
-          lightIntensity: data.light_lux ?? 0,
-          vpd: data.vpd !== undefined ? data.vpd : calculateVPD(data.air_temp_c ?? 0, data.humidity_percent ?? 0),
-          waterTemp: data.water_temp_c ?? 20,
-          co2: data.co2_ppm ?? 450,
-
-          // These aren't in Firestore yet, so using defaults
-          pumpStatus: false,
-          autoMode: true,
-
-          lastSensorTimestamp: sensorTimestamp,
-        };
-
-        updateSensorData(mapped);
-
-        // Device online/offline check
-        // If no reading arrives for > 2 minutes, mark offline
-        const now = Date.now();
-        const lastSeen = new Date(sensorTimestamp).getTime();
-        const diffMs = now - lastSeen;
-        setDeviceOnline(diffMs <= 2 * 60 * 1000);
-
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        // eslint-disable-next-line no-console
-        console.warn('Firebase sync warning:', err);
-        setError(err.message);
-        setLoading(false);
-        setDeviceOnline(false);
-      }
-    );
+      );
     } catch (err: any) {
-        setError(err.message);
-        setLoading(false);
+      setError(err.message);
+      setLoading(false);
     }
 
     return () => {

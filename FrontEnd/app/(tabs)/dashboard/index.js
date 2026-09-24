@@ -135,6 +135,9 @@ export default function DashboardScreen() {
           <Text style={styles.subtitle}>
             Real-time hydroponics monitoring
           </Text>
+          <Text style={[styles.subtitle, { fontSize: 12, marginTop: 4 }]}>
+            Last updated: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : 'N/A'}
+          </Text>
         </View>
       </View>
 
