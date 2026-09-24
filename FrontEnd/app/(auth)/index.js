@@ -190,18 +190,18 @@ export default function AuthScreen() {
 
   const isWebOrTablet = !isMobile;
 
-  // Ensure the coin fits perfectly on the screen without bleeding or overflowing
-  const coinSize = isWebOrTablet ? 550 : Math.min(width * 0.95, height * 0.75);
+  // Ensure the container fits perfectly on the screen
+  const cardWidth = isWebOrTablet ? 550 : width * 0.95;
+  const cardHeight = isWebOrTablet ? 550 : Math.max(650, height * 0.85);
 
-  // Using 72% width and 8% vertical padding (84% height) provides massive vertical space while staying inside the circle.
-  const contentWidth = isWebOrTablet ? 400 : coinSize * 0.85;
-  const verticalPadding = isWebOrTablet ? coinSize * 0.05 : coinSize * 0.08;
+  const contentWidth = isWebOrTablet ? 400 : cardWidth * 0.9;
+  const verticalPadding = isWebOrTablet ? 550 * 0.05 : 40;
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.centeredContainer}>
-        {/* The 3D Coin Container */}
-        <View style={[styles.coinWrapper, { width: coinSize, height: coinSize }]}>
+        {/* The 3D Container */}
+        <View style={[styles.coinWrapper, { width: cardWidth, height: cardHeight }]}>
 
           {/* Front: Login */}
           <Animated.View style={[styles.coinFace, frontAnimatedStyle, { zIndex: isLoginState ? 1 : 0 }]}>
@@ -345,13 +345,13 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
     shadowRadius: 50, // increased glow size
     elevation: 60, // increased android glow
     perspective: 1200, // For 3D rotation
-    borderRadius: 9999, // Fixes rectangular shadow on Android
+    borderRadius: isMobile ? 24 : 9999, // Rectangular on mobile, circular on desktop
     backgroundColor: 'transparent',
   },
   coinFace: {
     width: '100%',
     height: '100%',
-    borderRadius: 9999,
+    borderRadius: isMobile ? 24 : 9999,
     backgroundColor: colors.surface,
     borderWidth: 7,
     borderColor: colors.border,
@@ -363,7 +363,7 @@ const createStyles = (colors, isMobile) => StyleSheet.create({
   coinInner: {
     width: '100%',
     height: '100%',
-    borderRadius: 9999,
+    borderRadius: isMobile ? 24 : 9999,
     borderWidth: 5,
     borderColor: 'rgba(0,0,0,0.15)', // Soft inner shadow rim for rounded depth
   },
