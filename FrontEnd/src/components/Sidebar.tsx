@@ -1,4 +1,5 @@
 import { Link, usePathname } from 'expo-router';
+import { Platform } from 'react-native';
 import {
   ChartBar as BarChart3,
   Bot,
@@ -123,8 +124,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: colors.border,
     padding: 20,
-    transitionDuration: '0.3s',
-    transitionProperty: 'width',
+    ...Platform.select({
+      web: {
+        transitionDuration: '0.3s',
+        transitionProperty: 'width',
+      },
+    }),
   },
   containerCollapsed: {
     width: 80,
@@ -172,6 +177,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     gap: 10,
   },
   navItem: {
+    display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,

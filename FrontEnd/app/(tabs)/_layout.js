@@ -174,7 +174,8 @@ export default function TabLayout() {
 
   const isLargeScreen = width >= 1024;
   const isTablet = width >= 768 && width < 1024;
-  const isDesktopOrTablet = isLargeScreen || isTablet;
+  const isWeb = Platform.OS === 'web';
+  const isDesktopOrTablet = isLargeScreen || isTablet || isWeb;
 
   const baseHeight = 64;
   const tabBarHeight = baseHeight + insets.bottom;
@@ -225,7 +226,7 @@ export default function TabLayout() {
   if (isDesktopOrTablet) {
     return (
       <View style={[styles.desktopContainer, { backgroundColor: themeColors.background }]}>
-        <Sidebar isCollapsed={isTablet} />
+        <Sidebar isCollapsed={isTablet || (isWeb && width < 1024)} />
         <View style={styles.content}>
           <Tabs
             sceneContainerStyle={{ backgroundColor: 'transparent' }}
