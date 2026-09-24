@@ -92,7 +92,7 @@ jobs:
 
   build-ios:
     name: Build iOS IPA (unsigned)
-    runs-on: macos-26
+    runs-on: macos-latest
 
     steps:
       - name: Checkout repository
@@ -146,10 +146,9 @@ jobs:
         id: scheme
         working-directory: ${{ env.FRONTEND_DIR }}/ios
         run: |
-          # The scheme name matches the app.json "name" (HyGrow), but this
-          # confirms it against the generated workspace instead of assuming.
-          SCHEME=$(xcodebuild -list -workspace *.xcworkspace 2>/dev/null \
-            | awk '/Schemes:/{flag=1; next} flag && NF{print $1; exit}')
+          # Expo prebuild creates an Xcode project matching the app name.
+          # The main scheme is exactly the name of the .xcodeproj.
+          SCHEME=$(ls -1d *.xcodeproj | head -n1 | sed 's/\.xcodeproj//')
           if [ -z "$SCHEME" ]; then
             echo "Could not detect an Xcode scheme" >&2
             exit 1
@@ -190,7 +189,7 @@ jobs:
         run: |
           mkdir -p release Payload
           APP_BUNDLE=$(find "$RUNNER_TEMP/ios-derived-data/Build/Products" \
-            -type d -path "*/Release-iphoneos/*.app" -prune -print | head -n1)
+            -type d -path "*/Release-iphoneos/${{ steps.scheme.outputs.name }}.app" -prune -print | head -n1)
           if [ -z "$APP_BUNDLE" ]; then
             echo "No unsigned .app bundle found in DerivedData" >&2
             echo "Build products:" >&2
