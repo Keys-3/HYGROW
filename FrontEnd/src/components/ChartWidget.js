@@ -7,8 +7,7 @@ import {
 } from 'react-native';
 
 import Svg, {
-  Path,
-  Circle,
+  Rect,
   Line,
   Text as SvgText,
 } from 'react-native-svg';
@@ -41,7 +40,7 @@ export default function ChartWidget({
 
   const activeColor = color || themeColors.primary;
 
-  if (values.length < 2) {
+  if (values.length === 0) {
     return (
       <View style={styles.container}>
         {title && <Text style={styles.title}>{title}</Text>}
@@ -52,28 +51,26 @@ export default function ChartWidget({
     );
   }
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+  
+  if (min === max) {
+    min = min > 0 ? min * 0.8 : 0;
+    max = max > 0 ? max * 1.2 : 1;
+  }
 
+  const range = max - min || 1;
   const padding = 24;
 
   const points = values.map((value, index) => {
-    const x =
-      padding +
-      (index * (chartWidth - padding * 2)) /
-        (values.length - 1);
-    const y =
-      chartHeight -
-      padding -
-      ((value - min) / range) *
-        (chartHeight - padding * 2);
-    return { x, y };
+    const x = padding + (index + 0.5) * ((chartWidth - padding * 2) / values.length);
+    const barHeight = ((value - min) / range) * (chartHeight - padding * 2);
+    const finalBarHeight = Math.max(barHeight, 4);
+    const y = chartHeight - padding - finalBarHeight;
+    return { x, y, barHeight: finalBarHeight };
   });
 
-  const path = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
-    .join(' ');
+  const barWidth = Math.max(((chartWidth - padding * 2) / values.length) * 0.6, 2);
 
   return (
     <View style={styles.container}>
@@ -95,22 +92,15 @@ export default function ChartWidget({
           );
         })}
 
-        <Path
-          d={path}
-          fill="none"
-          stroke={activeColor}
-          strokeWidth={3}
-        />
-
         {points.map((p, i) => (
-          <Circle
+          <Rect
             key={i}
-            cx={p.x}
-            cy={p.y}
-            r={4}
+            x={p.x - barWidth / 2}
+            y={p.y}
+            width={barWidth}
+            height={p.barHeight}
             fill={activeColor}
-            stroke={themeColors.card}
-            strokeWidth={1.5}
+            rx={4}
           />
         ))}
 
@@ -134,10 +124,7 @@ export default function ChartWidget({
 
         {labels.map((label, i) => {
           if (!label) return null;
-          const x =
-            padding +
-            (i * (chartWidth - padding * 2)) /
-              (labels.length - 1);
+          const x = padding + (i + 0.5) * ((chartWidth - padding * 2) / labels.length);
           return (
             <SvgText
               key={i}
