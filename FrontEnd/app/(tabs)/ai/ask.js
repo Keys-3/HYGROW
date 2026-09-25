@@ -120,7 +120,18 @@ export default function AskAIScreen() {
         if (lowerInput.includes('sensor') || lowerInput.includes('ph') || lowerInput.includes('water')) {
           aiText = "Based on the latest data, your sensors are online. Your pH is around 6.0 and the water level is stable at 82%.";
         } else if (lowerInput.includes('crop') || lowerInput.includes('grow')) {
-          aiText = "For this season, I recommend growing leafy greens like Spinach and Lettuce, as they thrive in your current hydroponic setup parameters.";
+          aiText = "Based on your current hydroponic setup and seasonal trends, here is a detailed breakdown of the best crops to grow right now:\n\n" +
+            "### 1. Leafy Greens (Highly Recommended)\n" +
+            "- **Spinach & Lettuce:** These are perfect for your current pH level of 6.0.\n" +
+            "- **Growth Cycle:** Fast (3-4 weeks until harvest).\n" +
+            "- **Water Needs:** Minimal, extremely efficient in your system.\n\n" +
+            "### 2. Herbs\n" +
+            "- **Basil & Mint:** High market demand and grow aggressively in hydroponics.\n" +
+            "- **Nutrient Requirements:** EC levels around 1.2-1.6 are optimal.\n\n" +
+            "### 3. Fruiting Plants (Intermediate)\n" +
+            "- **Cherry Tomatoes & Bell Peppers:** Require a bit more support and higher light intensity.\n" +
+            "- **Yield:** Very high if temperature stays around the current 24°C.\n\n" +
+            "**Pro Tip:** If you want a fast return on investment, start with a 70% Lettuce and 30% Basil mix.";
         } else if (lowerInput.includes('weather') || lowerInput.includes('temperature') || lowerInput.includes('temp')) {
           aiText = "The current temperature is optimal for your crops (around 24°C). The humidity is at 65%.";
         } else if (lowerInput.includes('hello') || lowerInput.includes('hi')) {

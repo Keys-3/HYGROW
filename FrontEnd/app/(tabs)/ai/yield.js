@@ -3,32 +3,38 @@ import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, ActivityIndic
 import { useRouter } from 'expo-router';
 import { useThemeColors, spacing, borderRadius, typography, shadows } from '../../../src/theme/theme';
 import useSensorData from '../../../src/hooks/useSensorData';
+import useAppStore from '../../../src/store/useAppStore';
 import { predictGrowth } from "../../../src/services/growthPrediction";
 
 const CROP_OPTIONS = [
-  { label: 'Butterhead Lettuce', temp: '22', hum: '65', ph: '6.0', ec: '1.2', water: '80', light: '15000' },
-  { label: 'Tomatoes', temp: '26', hum: '70', ph: '6.2', ec: '2.5', water: '70', light: '25000' },
-  { label: 'Basil', temp: '24', hum: '60', ph: '6.5', ec: '1.6', water: '75', light: '20000' },
-  { label: 'Spinach', temp: '18', hum: '60', ph: '6.5', ec: '1.8', water: '85', light: '12000' },
-  { label: 'Strawberries', temp: '20', hum: '70', ph: '5.8', ec: '1.5', water: '65', light: '22000' },
+  { label: 'Butterhead Lettuce', temp: '22', hum: '65', ph: '6.0', ec: '1.2', water: '80', light: '15000', vpd: '0.8', waterTemp: '20', co2: '450' },
+  { label: 'Tomatoes', temp: '26', hum: '70', ph: '6.2', ec: '2.5', water: '70', light: '25000', vpd: '1.0', waterTemp: '22', co2: '800' },
+  { label: 'Basil', temp: '24', hum: '60', ph: '6.5', ec: '1.6', water: '75', light: '20000', vpd: '0.9', waterTemp: '21', co2: '500' },
+  { label: 'Spinach', temp: '18', hum: '60', ph: '6.5', ec: '1.8', water: '85', light: '12000', vpd: '0.7', waterTemp: '18', co2: '400' },
+  { label: 'Strawberries', temp: '20', hum: '70', ph: '5.8', ec: '1.5', water: '65', light: '22000', vpd: '0.8', waterTemp: '19', co2: '600' },
 ];
 
 export default function YieldScreen() {
   const router = useRouter();
   const { current } = useSensorData();
+  const farmerFeatures = useAppStore((state) => state.farmerFeatures);
   const themeColors = useThemeColors();
   const styles = createStyles(themeColors);
   
   const [crop, setCrop] = useState(CROP_OPTIONS[0].label);
   const [showCropModal, setShowCropModal] = useState(false);
 
-  // Editable sensor readings
+  const isSensorActive = (key) => farmerFeatures?.sensors?.[key] !== false;
+
   const [temperature, setTemperature] = useState(current?.temperature?.toString() ?? '25');
   const [humidity, setHumidity] = useState(current?.humidity?.toString() ?? '60');
   const [ph, setPh] = useState(current?.ph?.toString() ?? '6.0');
   const [ec, setEc] = useState(current?.ec?.toString() ?? '1.5');
   const [waterLevel, setWaterLevel] = useState(current?.waterLevel?.toString() ?? '80');
   const [lightIntensity, setLightIntensity] = useState(current?.lightIntensity?.toString() ?? '15000');
+  const [vpd, setVpd] = useState(current?.vpd?.toString() ?? '0.8');
+  const [waterTemp, setWaterTemp] = useState(current?.waterTemp?.toString() ?? '20');
+  const [co2, setCo2] = useState(current?.co2?.toString() ?? '450');
   
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
@@ -42,6 +48,9 @@ export default function YieldScreen() {
     setEc(selectedCrop.ec);
     setWaterLevel(selectedCrop.water);
     setLightIntensity(selectedCrop.light);
+    setVpd(selectedCrop.vpd);
+    setWaterTemp(selectedCrop.waterTemp);
+    setCo2(selectedCrop.co2);
     setShowCropModal(false);
   };
 
@@ -52,6 +61,9 @@ export default function YieldScreen() {
     setEc(current?.ec?.toString() ?? '1.5');
     setWaterLevel(current?.waterLevel?.toString() ?? '80');
     setLightIntensity(current?.lightIntensity?.toString() ?? '15000');
+    setVpd(current?.vpd?.toString() ?? '0.8');
+    setWaterTemp(current?.waterTemp?.toString() ?? '20');
+    setCo2(current?.co2?.toString() ?? '450');
   };
 
   const handlePredict = async () => {
@@ -66,6 +78,9 @@ export default function YieldScreen() {
           tds: Math.round((parseFloat(ec) || 1.5) * 500), // convert EC to rough TDS
           waterLevel: parseFloat(waterLevel) || 80,
           lightIntensity: parseFloat(lightIntensity) || 15000,
+          vpd: parseFloat(vpd) || 0.8,
+          waterTemp: parseFloat(waterTemp) || 20,
+          co2: parseFloat(co2) || 450,
         };
 
         const response = await predictGrowth(payload);
@@ -107,71 +122,122 @@ export default function YieldScreen() {
           </View>
 
           <View style={styles.readingsGrid}>
-            <View style={styles.readingInputWrapper}>
-              <Text style={styles.readingLabel}>Temp (°C)</Text>
-              <TextInput
-                style={styles.readingInput}
-                value={temperature}
-                onChangeText={setTemperature}
-                keyboardType="numeric"
-                placeholderTextColor={themeColors.textMuted}
-              />
-            </View>
+            {isSensorActive('temperature') && (
+              <View style={styles.readingInputWrapper}>
+                <Text style={styles.readingLabel}>Temp (°C)</Text>
+                <TextInput
+                  style={styles.readingInput}
+                  value={temperature}
+                  onChangeText={setTemperature}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+            )}
 
-            <View style={styles.readingInputWrapper}>
-              <Text style={styles.readingLabel}>Humidity (%)</Text>
-              <TextInput
-                style={styles.readingInput}
-                value={humidity}
-                onChangeText={setHumidity}
-                keyboardType="numeric"
-                placeholderTextColor={themeColors.textMuted}
-              />
-            </View>
+            {isSensorActive('humidity') && (
+              <View style={styles.readingInputWrapper}>
+                <Text style={styles.readingLabel}>Humidity (%)</Text>
+                <TextInput
+                  style={styles.readingInput}
+                  value={humidity}
+                  onChangeText={setHumidity}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+            )}
 
-            <View style={styles.readingInputWrapper}>
-              <Text style={styles.readingLabel}>pH Level</Text>
-              <TextInput
-                style={styles.readingInput}
-                value={ph}
-                onChangeText={setPh}
-                keyboardType="numeric"
-                placeholderTextColor={themeColors.textMuted}
-              />
-            </View>
+            {isSensorActive('ph') && (
+              <View style={styles.readingInputWrapper}>
+                <Text style={styles.readingLabel}>pH Level</Text>
+                <TextInput
+                  style={styles.readingInput}
+                  value={ph}
+                  onChangeText={setPh}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+            )}
 
-            <View style={styles.readingInputWrapper}>
-              <Text style={styles.readingLabel}>EC (mS/cm)</Text>
-              <TextInput
-                style={styles.readingInput}
-                value={ec}
-                onChangeText={setEc}
-                keyboardType="numeric"
-                placeholderTextColor={themeColors.textMuted}
-              />
-            </View>
+            {isSensorActive('ec') && (
+              <View style={styles.readingInputWrapper}>
+                <Text style={styles.readingLabel}>EC (mS/cm)</Text>
+                <TextInput
+                  style={styles.readingInput}
+                  value={ec}
+                  onChangeText={setEc}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+            )}
 
-            <View style={styles.readingInputWrapper}>
-              <Text style={styles.readingLabel}>Water Lvl (%)</Text>
-              <TextInput
-                style={styles.readingInput}
-                value={waterLevel}
-                onChangeText={setWaterLevel}
-                keyboardType="numeric"
-                placeholderTextColor={themeColors.textMuted}
-              />
-            </View>
+            {isSensorActive('waterLevel') && (
+              <View style={styles.readingInputWrapper}>
+                <Text style={styles.readingLabel}>Water Lvl (%)</Text>
+                <TextInput
+                  style={styles.readingInput}
+                  value={waterLevel}
+                  onChangeText={setWaterLevel}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+            )}
 
-            <View style={styles.readingInputWrapper}>
-              <Text style={styles.readingLabel}>Light (lux)</Text>
-              <TextInput
-                style={styles.readingInput}
-                value={lightIntensity}
-                onChangeText={setLightIntensity}
-                keyboardType="numeric"
-                placeholderTextColor={themeColors.textMuted}
-              />
-            </View>
+            {isSensorActive('lightIntensity') && (
+              <View style={styles.readingInputWrapper}>
+                <Text style={styles.readingLabel}>Light (lux)</Text>
+                <TextInput
+                  style={styles.readingInput}
+                  value={lightIntensity}
+                  onChangeText={setLightIntensity}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+            )}
+
+            {isSensorActive('vpd') && (
+              <View style={styles.readingInputWrapper}>
+                <Text style={styles.readingLabel}>VPD (kPa)</Text>
+                <TextInput
+                  style={styles.readingInput}
+                  value={vpd}
+                  onChangeText={setVpd}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+            )}
+
+            {isSensorActive('waterTemp') && (
+              <View style={styles.readingInputWrapper}>
+                <Text style={styles.readingLabel}>Water Temp (°C)</Text>
+                <TextInput
+                  style={styles.readingInput}
+                  value={waterTemp}
+                  onChangeText={setWaterTemp}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+            )}
+
+            {isSensorActive('co2') && (
+              <View style={styles.readingInputWrapper}>
+                <Text style={styles.readingLabel}>CO2 (ppm)</Text>
+                <TextInput
+                  style={styles.readingInput}
+                  value={co2}
+                  onChangeText={setCo2}
+                  keyboardType="numeric"
+                  placeholderTextColor={themeColors.textMuted}
+                />
+              </View>
+            )}
           </View>
         </View>
         
